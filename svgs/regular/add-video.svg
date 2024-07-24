@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   class="stroke"
+   style="stroke-width:32"
+   viewBox="0 0 512 512"
+   version="1.1"
+   id="svg6"
+   sodipodi:docname="videocam-outline.svg"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs10" />
+  <sodipodi:namedview
+     id="namedview8"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:pageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     showgrid="false"
+     inkscape:zoom="0.95703125"
+     inkscape:cx="256"
+     inkscape:cy="256"
+     inkscape:window-width="1366"
+     inkscape:window-height="693"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg6" />
+  <path
+     d="m 381.72887,303.12585 77.25506,54.38024 c 9.88289,4.39384 21.01594,-2.84016 21.01607,-13.65577 V 163.80333 c -1.3e-4,-10.81561 -11.13318,-18.04961 -21.01607,-13.65577 l -77.25506,54.38024 c -3.9754,2.79846 -6.34114,7.35574 -6.34218,12.21734 v 74.16337 c 0.001,4.8616 2.36678,9.41888 6.34218,12.21734 z"
+     id="path2"
+     style="fill:none;stroke:#000000;stroke-opacity:1;stroke-linecap:round;paint-order:normal;stroke-linejoin:miter" />
+  <path
+     d="m 61.546754,238.81443 v -55.97521 c 0.07696,-26.79278 21.777678,-48.49351 48.570466,-48.57046 h 172.31307 c 26.54305,0.082 48.04008,21.57907 48.12212,48.12212 v 142.42355 c -0.0769,26.79279 -21.77768,48.49351 -48.57046,48.57047 h -49.86473 m -52,-38 H 32.699316 M 105.547,401.81331 V 266.81443"
+     id="path4"
+     style="fill:none;stroke:#000000;stroke-opacity:1;stroke-linecap:round;paint-order:normal;stroke-linejoin:miter" />
+</svg>
