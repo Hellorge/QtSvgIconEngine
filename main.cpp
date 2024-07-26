@@ -20,12 +20,13 @@ int main(int argc, char *argv[]) {
     SvgIconEngine iconEngine(":/icons");
 
     QVariantMap colors;
-    // colors["default_colors"] = true;
-    // colors["color"] = QColor(Qt::red);
     SvgIcon icon = iconEngine.getIcon("regular", "calendar", colors);
-    SvgIcon icon2 = iconEngine.getIcon("regular", "erdctfg");
+    colors["color"] = QColor(Qt::red);
+    SvgIcon icon2 = iconEngine.getIcon("regular", "flag", colors);
+    colors["default_colors"] = true;
+    SvgIcon icon3 = iconEngine.getIcon("regular", "woman", colors);
 
-    icon.animateColorChange(Qt::red, Qt::blue, 1000);
+    // icon.animateColorChange(Qt::red, Qt::blue, 1000);
     // icon.rotate(45, 500);
 
     QWidget mainWindow;
@@ -38,9 +39,13 @@ int main(int argc, char *argv[]) {
     iconLabel2->setPixmap(icon2.pixmap(64, 64));
     iconLabel2->setAlignment(Qt::AlignCenter);
 
+    QLabel *iconLabel3 = new QLabel;
+    iconLabel3->setPixmap(icon3.pixmap(64, 64));
+    iconLabel3->setAlignment(Qt::AlignCenter);
 
     mainLayout->addWidget(iconLabel);
     mainLayout->addWidget(iconLabel2);
+    mainLayout->addWidget(iconLabel3);
     mainWindow.setLayout(mainLayout);
     mainWindow.show();
 

@@ -19,7 +19,7 @@ private:
     QPixmap createPixmap(const QString &filePath, const QVariantMap &options);
     QPixmap drawNullIcon();
 
-    QPen pen;
+    // static QPen pen;
     const QColor defIconColor;
     QString iconPath;
 };
