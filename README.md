@@ -23,7 +23,7 @@ SvgIcon icon = iconEngine.getIcon(<style>, <icon_name>, <options>);
     | QVariant  |  Value Type  | Default Value |    Ex. Value    | Use |
     | ------------------ | ------ | ------------- | --------------- | --- |
     | color              | QColor | QApplication::palette().text().color() | QColor(Qt::red) | Color used to fill icon |
-    | default_colors     |  bool  | false | true/false | If generated should use color from svg file |
+    | default_colors     |  bool  | false | true/false | If icon colors remain as in svg file |
 
 ### Example
 An svg file at `/home/user/pictures/svgs/regular/calendar.svg`
