@@ -19,7 +19,10 @@ int main(int argc, char *argv[]) {
 
     SvgIconEngine iconEngine(":/icons");
 
-    SvgIcon icon = iconEngine.getIcon("regular", "calendar");
+    QVariantMap colors;
+    // colors["default_colors"] = true;
+    // colors["color"] = QColor(Qt::red);
+    SvgIcon icon = iconEngine.getIcon("regular", "calendar", colors);
     SvgIcon icon2 = iconEngine.getIcon("regular", "flag");
 
     // icon.animateColorChange(Qt::red, Qt::blue, 1000);
@@ -27,7 +30,6 @@ int main(int argc, char *argv[]) {
 
     QWidget mainWindow;
     QVBoxLayout *mainLayout = new QVBoxLayout(&mainWindow);
-
     QLabel *iconLabel = new QLabel;
     iconLabel->setPixmap(icon.pixmap(64, 64));
     iconLabel->setAlignment(Qt::AlignCenter);

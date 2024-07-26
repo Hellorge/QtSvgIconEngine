@@ -3,7 +3,7 @@
 #include <QDebug>
 #include <QApplication>
 
-SvgIconEngine::SvgIconEngine(const QString &filePath) : iconPath(filePath) {}
+SvgIconEngine::SvgIconEngine(const QString &filePath) : iconPath(filePath), defIconColor(QApplication::palette().text().color()) {}
 
 SvgIconEngine::~SvgIconEngine() {}
 
@@ -19,12 +19,7 @@ QPixmap SvgIconEngine::createPixmap(const QString &filePath, const QVariantMap &
 	QSvgRenderer renderer(filePath);
 
 	if (!renderer.isValid()) {
-        qWarning() << "SVG file does not exist or is invalid:" << filePath;
         return QPixmap();
-    }
-
-    if (options.isEmpty() && !options.value("default").isValid()) {
-    	options["default"] = QApplication::palette().text().color();
     }
 
     QSize size = renderer.defaultSize();
@@ -35,19 +30,29 @@ QPixmap SvgIconEngine::createPixmap(const QString &filePath, const QVariantMap &
     QPainter painter(&pixmap);
     renderer.render(&painter);
 
-    QPixmap coloredPixmap(size);
-    coloredPixmap.fill(Qt::transparent);
 
-    QPainter colorPainter(&coloredPixmap);
-    renderer.render(&colorPainter);
-    colorPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    colorPainter.fillRect(coloredPixmap.rect(), options.value("default").value<QColor>());
-    colorPainter.end();
+    QColor iconColor(defIconColor);
 
-    painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
-    painter.drawPixmap(0, 0, coloredPixmap);
+    if (options.value("color").isValid()) {
+		iconColor = options.value("color").value<QColor>();
+    }
 
-    painter.end();
+    qDebug() << options.value("default_colors").value<bool>();
+    if (!options.value("default_colors").value<bool>()) {
+    	QPixmap coloredPixmap(size);
+	    coloredPixmap.fill(Qt::transparent);
+
+	    QPainter colorPainter(&coloredPixmap);
+	    renderer.render(&colorPainter);
+	    colorPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	    colorPainter.fillRect(coloredPixmap.rect(), iconColor);
+	    colorPainter.end();
+
+	    painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+	    painter.drawPixmap(0, 0, coloredPixmap);
+
+	    painter.end();
+    }
 
     if (pixmap.isNull()) {
     	drawNullIcon(pixmap);

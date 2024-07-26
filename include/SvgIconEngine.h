@@ -20,6 +20,7 @@ private:
     void drawNullIcon(QPixmap &pixmap);
 
     QPen pen;
+    const QColor defIconColor;
     QString iconPath;
 };
 
