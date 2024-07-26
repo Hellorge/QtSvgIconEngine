@@ -17,7 +17,7 @@ public:
 
 private:
     QPixmap createPixmap(const QString &filePath, const QVariantMap &options);
-    void drawNullIcon(QPixmap &pixmap);
+    QPixmap drawNullIcon();
 
     QPen pen;
     const QColor defIconColor;

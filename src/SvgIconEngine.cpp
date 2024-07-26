@@ -19,7 +19,7 @@ QPixmap SvgIconEngine::createPixmap(const QString &filePath, const QVariantMap &
 	QSvgRenderer renderer(filePath);
 
 	if (!renderer.isValid()) {
-        return QPixmap();
+        return drawNullIcon();
     }
 
     QSize size = renderer.defaultSize();
@@ -30,14 +30,12 @@ QPixmap SvgIconEngine::createPixmap(const QString &filePath, const QVariantMap &
     QPainter painter(&pixmap);
     renderer.render(&painter);
 
-
     QColor iconColor(defIconColor);
 
     if (options.value("color").isValid()) {
 		iconColor = options.value("color").value<QColor>();
     }
 
-    qDebug() << options.value("default_colors").value<bool>();
     if (!options.value("default_colors").value<bool>()) {
     	QPixmap coloredPixmap(size);
 	    coloredPixmap.fill(Qt::transparent);
@@ -54,25 +52,23 @@ QPixmap SvgIconEngine::createPixmap(const QString &filePath, const QVariantMap &
 	    painter.end();
     }
 
-    if (pixmap.isNull()) {
-    	drawNullIcon(pixmap);
-    }
-
     return pixmap;
 }
 
-void SvgIconEngine::drawNullIcon(QPixmap &pixmap)
+QPixmap SvgIconEngine::drawNullIcon()
 {
-    pen.setWidth(2);
+	pen.setWidth(8);
     pen.setColor(QApplication::palette().text().color());
 
-    pixmap.scaled(QSize(100, 100));
-    pixmap.fill(Qt::transparent);
+	QPixmap pixmap = QPixmap(100, 100);
+	pixmap.fill(Qt::transparent);
 
-    QPainter painter(&pixmap);
+	QPainter painter(&pixmap);
     painter.setPen(pen);
     painter.drawRect(0, 0, pixmap.width() - 1, pixmap.height() - 1);
     painter.drawLine(0, 0, pixmap.width() - 1, pixmap.height() - 1);
     painter.drawLine(0, pixmap.height() - 1, pixmap.width() - 1, 0);
     painter.end();
+
+    return pixmap;
 }

@@ -23,9 +23,9 @@ int main(int argc, char *argv[]) {
     // colors["default_colors"] = true;
     // colors["color"] = QColor(Qt::red);
     SvgIcon icon = iconEngine.getIcon("regular", "calendar", colors);
-    SvgIcon icon2 = iconEngine.getIcon("regular", "flag");
+    SvgIcon icon2 = iconEngine.getIcon("regular", "erdctfg");
 
-    // icon.animateColorChange(Qt::red, Qt::blue, 1000);
+    icon.animateColorChange(Qt::red, Qt::blue, 1000);
     // icon.rotate(45, 500);
 
     QWidget mainWindow;
