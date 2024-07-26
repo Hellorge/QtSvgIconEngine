@@ -2,6 +2,9 @@ Demo uses the beautiful open source [ionicons](https://ionic.io/ionicons)
 
 Merge requests are welcome, I'll only work on or add functionality I deem required while working on other projects of mine.
 
+> [!NOTE]
+> The `CMakeLists.txt` bundles all `.svg` files present in provided directory in a resource file `resources.qrc` located inside your build folder.
+
 ### Usage
 ```
 SvgIconEngine iconEngine(<path/to/svg/files/directory>);
