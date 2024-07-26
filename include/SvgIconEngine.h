@@ -2,7 +2,9 @@
 #define SVGICONENGINE_H
 
 #include "SvgIcon.h"
+#include <QPen>
 #include <QString>
+#include <QPalette>
 #include <QVariantMap>
 
 class SvgIconEngine
@@ -15,7 +17,9 @@ public:
 
 private:
     QPixmap createPixmap(const QString &filePath, const QVariantMap &options);
+    void drawNullIcon(QPixmap &pixmap);
 
+    QPen pen;
     QString iconPath;
 };
 
