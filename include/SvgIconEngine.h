@@ -13,15 +13,18 @@ public:
     explicit SvgIconEngine(const QString &filePath);
     ~SvgIconEngine();
 
-    SvgIcon getIcon(const QString &style, const QString &iconName, const QVariantMap &options = QVariantMap());
+    QIcon getIcon(const QString &style, const QString &iconName, const QVariantMap &options = QVariantMap());
 
 private:
-    QPixmap createPixmap(const QString &filePath, const QVariantMap &options);
+	QPixmap getPixmap(const QString &filePath);
+    QPixmap createPixmap(const QString &filePath);
+    QPixmap applyOptions(QPixmap pixmap, const QVariantMap &options);
     QPixmap drawNullIcon();
 
     // static QPen pen;
-    const QColor defIconColor;
     QString iconPath;
+    const QColor defIconColor;
+    QHash<QString, QPixmap> pixmapCache;
 };
 
 #endif // SVGICONENGINE_H

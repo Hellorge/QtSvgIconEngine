@@ -20,33 +20,30 @@ int main(int argc, char *argv[]) {
     SvgIconEngine iconEngine(":/icons");
 
     QVariantMap colors;
-    SvgIcon icon = iconEngine.getIcon("regular", "calendar", colors);
+    QList<QIcon> icons;
+    icons.append(iconEngine.getIcon("regular", "calendar", colors));
+
     colors["color"] = QColor(Qt::red);
-    SvgIcon icon2 = iconEngine.getIcon("regular", "flag", colors);
+    icons.append(iconEngine.getIcon("regular", "flag", colors));
+
     colors["default_colors"] = true;
-    SvgIcon icon3 = iconEngine.getIcon("regular", "woman", colors);
+    icons.append(iconEngine.getIcon("regular", "woman", colors));
+
+    icons.append(iconEngine.getIcon("regular", "calendar", colors));
 
     // icon.animateColorChange(Qt::red, Qt::blue, 1000);
     // icon.rotate(45, 500);
 
     QWidget mainWindow;
     QVBoxLayout *mainLayout = new QVBoxLayout(&mainWindow);
-    QLabel *iconLabel = new QLabel;
-    iconLabel->setPixmap(icon.pixmap(64, 64));
-    iconLabel->setAlignment(Qt::AlignCenter);
 
-    QLabel *iconLabel2 = new QLabel;
-    iconLabel2->setPixmap(icon2.pixmap(64, 64));
-    iconLabel2->setAlignment(Qt::AlignCenter);
+    for (int i = 0; i < icons.count() ; i++) {
+	    QLabel *label = new QLabel;
+	    label->setPixmap(icons[i].pixmap(64, 64));
 
-    QLabel *iconLabel3 = new QLabel;
-    iconLabel3->setPixmap(icon3.pixmap(64, 64));
-    iconLabel3->setAlignment(Qt::AlignCenter);
+		mainLayout->addWidget(label);
+    }
 
-    mainLayout->addWidget(iconLabel);
-    mainLayout->addWidget(iconLabel2);
-    mainLayout->addWidget(iconLabel3);
-    mainWindow.setLayout(mainLayout);
     mainWindow.show();
 
     // QWidget *scrollWidget = new QWidget;

@@ -7,14 +7,24 @@ SvgIconEngine::SvgIconEngine(const QString &filePath) : iconPath(filePath), defI
 
 SvgIconEngine::~SvgIconEngine() {}
 
-SvgIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, const QVariantMap &options) {
+QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, const QVariantMap &options) {
     QString filePath = QString("%1/%2/%3.svg").arg(iconPath).arg(style).arg(iconName);
-    QPixmap pixmap = createPixmap(filePath, options);
+    QPixmap pixmap = getPixmap(filePath);
+
+    pixmap = applyOptions(pixmap, options);
 
     return SvgIcon(pixmap);
 }
 
-QPixmap SvgIconEngine::createPixmap(const QString &filePath, const QVariantMap &options) {
+QPixmap SvgIconEngine::getPixmap(const QString &filePath) {
+	if (pixmapCache.contains(filePath)) {
+		return pixmapCache.value(filePath);
+	}
+
+    return createPixmap(filePath);
+}
+
+QPixmap SvgIconEngine::createPixmap(const QString &filePath) {
 
 	QSvgRenderer renderer(filePath);
 
@@ -23,34 +33,37 @@ QPixmap SvgIconEngine::createPixmap(const QString &filePath, const QVariantMap &
     }
 
     QSize size = renderer.defaultSize();
-
     QPixmap pixmap(size);
     pixmap.fill(Qt::transparent);
 
     QPainter painter(&pixmap);
     renderer.render(&painter);
+    painter.end();
 
-    QColor iconColor = defIconColor;
+    pixmapCache.insert(filePath, pixmap);
+
+    return pixmap;
+}
+
+QPixmap SvgIconEngine::applyOptions(QPixmap pixmap, const QVariantMap &options) {
+	QColor iconColor = defIconColor;
 
     if (options.value("color").isValid()) {
-		iconColor = options.value("color").value<QColor>();
+    	iconColor = options.value("color").value<QColor>();
     }
 
     if (!options.value("default_colors").value<bool>()) {
-        painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        painter.fillRect(pixmap.rect(), iconColor);
+	    QPainter painter(&pixmap);
+	    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	    painter.fillRect(pixmap.rect(), iconColor);
+	    painter.end();
     }
-
-    painter.end();
 
     return pixmap;
 }
 
 QPixmap SvgIconEngine::drawNullIcon() {
     static QPen pen(QApplication::palette().text().color(), 8);
-
-   	// pen.setWidth(8);
-    // pen.setColor(QApplication::palette().text().color());
 
     QPixmap pixmap(100, 100);
     pixmap.fill(Qt::transparent);
