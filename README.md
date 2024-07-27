@@ -12,10 +12,10 @@ SvgIconEngine iconEngine(<path/to/svg/files/directory>, <options>);
 SvgIcon icon = iconEngine.getIcon(<style>, <icon_name>, <options>);
 // to get an icon
 
-iconEngine.setDefaults(<ptions>);
+iconEngine.setDefaults(<options>);
 // set new default options
 
-iconEngine.setCachePolicy(CachePolicy policy);
+iconEngine.setCachePolicy(<policy>);
 // {ALL, NONE, LRU}
 // ALL: cache all icons, NONE: no caching, LRU: 100 pixmaps will be cache at once
 
@@ -32,6 +32,10 @@ iconEngine.clearCache();
     - `options` | QVariantMap
 
     	Set default options for all new icons
+
+    - `policy` | CachePolicy
+
+    	Set cache policy for SvgIconEngine, possible values are: `ALL`, `NONE`, `LRU`
 
 2. `SvgIconEngine::getIcon` get an icon
 	  - `style` | QString | Required
