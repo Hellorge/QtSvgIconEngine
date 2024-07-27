@@ -2,21 +2,35 @@
 #include <QColor>
 #include <QDebug>
 #include <QApplication>
+#include <QStandardPaths>
+#include <QDir>
+#include <QMutexLocker>
 
 SvgIconEngine::SvgIconEngine(const QString &filePath, const QVariantMap &options)
-	: iconPath(filePath), pixmapCache(100)
+	: iconPath(filePath), cachePolicy(CachePolicy::LRU)
 {
+	iconProperties << "color" << "background" << "default_colors";
+
 	setDefaults(options);
+	setCachePolicy(cachePolicy);
+
+	loadCacheFromDisk();
+	connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &SvgIconEngine::saveCacheToDisk);
 }
 
-SvgIconEngine::~SvgIconEngine()
-{}
+SvgIconEngine::~SvgIconEngine() {
+	saveCacheToDisk();
+}
 
 void SvgIconEngine::setDefaults(const QVariantMap &options) {
 	defOptions = options;
 
-	if (!defOptions.contains("color")) {
+	if (!defOptions.contains("color") || !defOptions.value("color").isValid()) {
         defOptions.insert("color", QApplication::palette().text().color());
+    }
+
+   	if (!defOptions.contains("background") || !defOptions.value("background").isValid()) {
+        defOptions.insert("background", QColor(Qt::transparent));
     }
 
    	if (!defOptions.contains("default_colors")) {
@@ -26,6 +40,15 @@ void SvgIconEngine::setDefaults(const QVariantMap &options) {
 
 void SvgIconEngine::clearCache() {
     pixmapCache.clear();
+}
+
+void SvgIconEngine::setCachePolicy(CachePolicy policy) {
+    cachePolicy = policy;
+    if (policy == CachePolicy::ALL) {
+        pixmapCache.setMaxCost(INT_MAX);
+    } else {
+        pixmapCache.setMaxCost(100);
+    }
 }
 
 QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, const QVariantMap &options) {
@@ -38,7 +61,7 @@ QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, cons
 }
 
 QPixmap SvgIconEngine::getPixmap(const QString &filePath) {
-	if (pixmapCache.contains(filePath)) {
+	if (cachePolicy != CachePolicy::NONE && pixmapCache.contains(filePath)) {
 		return *pixmapCache.object(filePath);
 	}
 
@@ -60,27 +83,36 @@ QPixmap SvgIconEngine::createPixmap(const QString &filePath) {
     renderer.render(&painter);
     painter.end();
 
-    pixmapCache.insert(filePath, new QPixmap(pixmap));
+    if (cachePolicy != CachePolicy::NONE) {
+    	pixmapCache.insert(filePath, new QPixmap(pixmap));
+    }
 
     return pixmap;
 }
 
-QPixmap SvgIconEngine::applyOptions(QPixmap pixmap, const QVariantMap &iconOptions) {
-	QVariantMap options = defOptions;
+QPixmap SvgIconEngine::applyOptions(QPixmap pixmap, const QVariantMap &options) {
+	auto getOption = [&](const QString &key) {
+        return options.value(key, defOptions.value(key));
+    };
 
-	if (iconOptions.contains("color") && iconOptions.value("color").isValid()) {
-        options.insert("color", iconOptions.value("color"));
-    }
+    if (!getOption("default_colors").toBool()) {
+    	QPixmap bgPixmap(pixmap.size());
+		bgPixmap.fill(getOption("background").value<QColor>());
 
-    if (iconOptions.contains("default_colors")) {
-    	options.insert("default_colors", iconOptions.value("default_colors"));
-    }
+		QPainter painter(&bgPixmap);
+	    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
-    if (!options.value("default_colors").toBool()) {
-	    QPainter painter(&pixmap);
-	    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-	    painter.fillRect(pixmap.rect(), options.value("color").value<QColor>());
+		{
+			QPainter tempPainter(&pixmap);
+			tempPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+		    tempPainter.fillRect(pixmap.rect(), getOption("color").value<QColor>());
+		    tempPainter.end();
+		}
+
+		painter.drawPixmap(0, 0, pixmap);
 	    painter.end();
+
+		return bgPixmap;
     }
 
     return pixmap;
@@ -103,9 +135,24 @@ QPixmap SvgIconEngine::drawNullIcon() {
 }
 
 void SvgIconEngine::loadIconAsync(const QString &filePath) {
-    // QtConcurrent::run([=]() {
-    //     getPixmap(filePath);
-    // });
+	// static QVector<QFuture<void>> futures;
+
+	// futures.erase(
+	// 	std::remove_if(
+	// 	  	futures.begin(),
+	// 	   	futures.end(),
+	// 		[](const QFuture<void> &future) {
+	// 		   	return future.isFinished();
+	// 		}
+	// 	),
+	// 	futures.end()
+ //    );
+
+ //    QFuture<void> future = QtConcurrent::run([this, filePath]() {
+ //        QPixmap pixmap = getPixmap(filePath);
+ //    });
+
+ //    futures.append(future);
 }
 
 void SvgIconEngine::logError(const QString &message) {
@@ -117,4 +164,77 @@ void SvgIconEngine::logError(const QString &message) {
     //     stream << QDateTime::currentDateTime().toString() << ": " << message << "\n";
     //     logFile.close();
     // }
+}
+
+QString getCacheDirectory() {
+    QString appName = QApplication::applicationName();
+    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    return cacheDir + "/" + appName;
+}
+
+void SvgIconEngine::saveCacheToDisk() {
+	QMutexLocker locker(&cacheMutex);
+
+	if (cachePolicy == CachePolicy::NONE) {
+		return;
+	}
+
+	QString cacheDir = getCacheDirectory();
+    QString cachePath = cacheDir + "/SvgIconEngineCache.dat";
+
+    QDir dir;
+    if (!dir.exists(cacheDir)) {
+        dir.mkpath(cacheDir);
+    }
+
+    QFile file(cachePath);
+    if (file.open(QIODevice::WriteOnly)) {
+        QDataStream out(&file);
+
+        int cacheSize = (cachePolicy == CachePolicy::ALL) ? pixmapCache.size() : pixmapCache.maxCost();
+        out << cacheSize;
+        int count = 0;
+        foreach (const QString &key, pixmapCache.keys()) {
+            if (count >= cacheSize) {
+                break;
+            }
+            out << key;
+            out << *(pixmapCache.object(key));
+            ++count;
+        }
+        file.close();
+    } else {
+        logError("Failed to open cache file for writing: " + cachePath);
+    }
+}
+
+void SvgIconEngine::loadCacheFromDisk() {
+	QMutexLocker locker(&cacheMutex);
+
+	if (cachePolicy == CachePolicy::NONE) {
+		return;
+	}
+
+	QString cacheDir = getCacheDirectory();
+    QString cachePath = cacheDir + "/SvgIconEngineCache.dat";
+
+    QFile file(cachePath);
+    if (file.open(QIODevice::ReadOnly)) {
+        QDataStream in(&file);
+
+        int cacheSize;
+        in >> cacheSize;
+
+        int maxLoadSize = (cachePolicy == CachePolicy::ALL) ? cacheSize : qMin(cacheSize, pixmapCache.maxCost());
+        for (int i = 0; i < maxLoadSize; ++i) {
+            QString key;
+            QPixmap pixmap;
+            in >> key;
+            in >> pixmap;
+            pixmapCache.insert(key, new QPixmap(pixmap));
+        }
+        file.close();
+    } else {
+        logError("Failed to open cache file for reading: " + cachePath);
+    }
 }

@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
     icons.append(iconEngine.getIcon("regular", "calendar"));
 
     colors["color"] = QColor(Qt::blue);
+    colors["background"] = QColor(Qt::green);
     icons.append(iconEngine.getIcon("regular", "flag", colors));
 
     colors["color"] = QColor(Qt::red);

@@ -30,9 +30,8 @@ set(HEADERS
 )
 
 add_library(SvgIconEngine STATIC ${SOURCES} ${HEADERS})
-target_link_libraries(SvgIconEngine PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Concurrent)
-include_directories(SvgIconEngine include)
+target_link_libraries(SvgIconEngine Qt6::Widgets Qt6::Svg Qt6::Concurrent)
+include_directories(SvgIconEngine PRIVATE include)
 
 add_executable(icon_engine_test main.cpp ${RESOURCES})
-target_link_libraries(icon_engine_test PRIVATE SvgIconEngine Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Concurrent)
-include_directories(icon_engine_test include)
+target_link_libraries(icon_engine_test PRIVATE SvgIconEngine)

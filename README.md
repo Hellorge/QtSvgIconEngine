@@ -39,6 +39,7 @@ SvgIcon icon = iconEngine.getIcon(<style>, <icon_name>, <options>);
 | -------------- | ------------ | ------------- | --------------- | --- |
 | color          |    QColor    | QApplication::palette().text().color() | QColor(Qt::red) | Color used to fill icon |
 | default_colors |     bool     | false | true/false | If icon colors remain as in svg file |
+| background     |    QColor    | Qt::transparent | QColor(Qt::red) | Background fill for icons |
 
 ### Example
 An svg file at `/home/user/pictures/svgs/regular/calendar.svg`
