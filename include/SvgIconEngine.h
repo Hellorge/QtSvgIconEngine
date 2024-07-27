@@ -4,17 +4,18 @@
 #include "SvgIcon.h"
 #include <QPen>
 #include <QString>
-#include <QPalette>
 #include <QVariantMap>
 #include <QCache>
-#include <QtConcurrent>
 #include <QMutex>
+#include <QLoggingCategory>
 
 enum class CachePolicy {
     LRU, // Least Recently Used
     ALL, // First In First Out
     NONE // No caching
 };
+
+Q_DECLARE_LOGGING_CATEGORY(lcSvgIconEngine)
 
 class SvgIconEngine : public QObject {
    Q_OBJECT

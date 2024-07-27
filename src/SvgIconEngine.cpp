@@ -1,10 +1,12 @@
 #include "SvgIconEngine.h"
-#include <QColor>
 #include <QDebug>
+#include <QPalette>
 #include <QApplication>
 #include <QStandardPaths>
 #include <QDir>
 #include <QMutexLocker>
+
+Q_LOGGING_CATEGORY(lcSvgIconEngine, "svgiconengine")
 
 SvgIconEngine::SvgIconEngine(const QString &filePath, const QVariantMap &options)
     : iconPath(filePath), cachePolicy(CachePolicy::LRU) {
@@ -46,9 +48,10 @@ QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, cons
 }
 
 QPixmap SvgIconEngine::getPixmap(const QString &filePath, const QVariantMap &options) {
-    QSvgRenderer *renderer = getRenderer(filePath);
+    std::unique_ptr<QSvgRenderer> renderer(getRenderer(filePath));
 
     if (!renderer || !renderer->isValid()) {
+        qCWarning(lcSvgIconEngine) << "Failed to get a valid QSvgRenderer for" << filePath;
         return drawNullIcon();
     }
 
@@ -59,7 +62,7 @@ QPixmap SvgIconEngine::getPixmap(const QString &filePath, const QVariantMap &opt
     QSize size = renderer->defaultSize();
 
     if (getOption("size").isValid()) {
-    	size = getOption("size").value<QSize>();
+        size = getOption("size").toSize();
     }
 
     QPixmap pixmap(size);
@@ -85,6 +88,7 @@ QPixmap SvgIconEngine::getPixmap(const QString &filePath, const QVariantMap &opt
     }
 
     if (pixmap.isNull()) {
+        qCWarning(lcSvgIconEngine) << "Generated pixmap is null.";
     	return drawNullIcon();
     }
 
@@ -103,6 +107,7 @@ QSvgRenderer* SvgIconEngine::getRenderer(const QString &filePath) {
 
     renderer = new QSvgRenderer(filePath);
     if (!renderer->isValid()) {
+        qCCritical(lcSvgIconEngine) << "Failed to create a valid QSvgRenderer for" << filePath;
         delete renderer;
         return nullptr;
     }
@@ -134,25 +139,25 @@ void SvgIconEngine::loadIconAsync(const QString &filePath) {
 	// static QVector<QFuture<void>> futures;
 
 	// futures.erase(
-	// 	std::remove_if(
-	// 	  	futures.begin(),
-	// 	   	futures.end(),
-	// 		[](const QFuture<void> &future) {
-	// 		   	return future.isFinished();
-	// 		}
-	// 	),
-	// 	futures.end()
- //    );
+    //     std::remove_if(
+    //         futures.begin(),
+    //         futures.end(),
+    //         [](const QFuture<void> &future) {
+    //             return future.isFinished();
+    //         }
+    //     ),
+    //     futures.end()
+    // );
 
- //    QFuture<void> future = QtConcurrent::run([this, filePath]() {
- //        QPixmap pixmap = getPixmap(filePath);
- //    });
+    // QFuture<void> future = QtConcurrent::run([this, filePath]() {
+    //     QPixmap pixmap = getPixmap(filePath);
+    // });
 
- //    futures.append(future);
+    // futures.append(future);
 }
 
 void SvgIconEngine::logError(const QString &message) {
-    qWarning() << "SvgIconEngine Error:" << message;
+    qCCritical(lcSvgIconEngine) << "SvgIconEngine Error:" << message;
 
     // QFile logFile("SvgIconEngine.log");
     // if (logFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
@@ -175,6 +180,7 @@ void SvgIconEngine::setCachePolicy(CachePolicy policy) {
     }
 }
 
+// Uncomment and implement as needed
 // QString SvgIconEngine::getCacheDirectory() {
 //     QString appName = QApplication::applicationName();
 //     QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
@@ -220,10 +226,9 @@ void SvgIconEngine::setCachePolicy(CachePolicy policy) {
 //         }
 //         file.close();
 //     } else {
-//         logError("Failed to open cache file for writing: " + cachePath);
+//         qCCritical(lcSvgIconEngine) << "Failed to open cache file for writing:" << cachePath;
 //     }
 // }
-
 
 // void SvgIconEngine::loadCacheFromDisk() {
 //     QMutexLocker locker(&cacheMutex);
@@ -259,6 +264,6 @@ void SvgIconEngine::setCachePolicy(CachePolicy policy) {
 //         }
 //         file.close();
 //     } else {
-//         logError("Failed to open cache file for reading: " + cachePath);
+//         qCCritical(lcSvgIconEngine) << "Failed to open cache file for reading:" << cachePath;
 //     }
 // }

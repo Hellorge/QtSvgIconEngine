@@ -17,6 +17,12 @@
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
+    QLoggingCategory::setFilterRules(
+    	"svgiconengine.debug=true\n"
+        "svgiconengine.warning=true\n"
+        "svgiconengine.critical=true"
+    );
+
     QVariantMap colors;
     SvgIconEngine iconEngine(":/icons", colors);
 
@@ -32,9 +38,6 @@ int main(int argc, char *argv[]) {
 
     colors["size"] = QSize(8, 8);
     icons.append(iconEngine.getIcon("regular", "calendar", colors));
-
-    // icon.animateColorChange(Qt::red, Qt::blue, 1000);
-    // icon.rotate(45, 500);
 
     QWidget mainWindow;
     QVBoxLayout *mainLayout = new QVBoxLayout(&mainWindow);
