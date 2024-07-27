@@ -7,19 +7,19 @@
 #include <QMutexLocker>
 
 SvgIconEngine::SvgIconEngine(const QString &filePath, const QVariantMap &options)
-	: iconPath(filePath), cachePolicy(CachePolicy::LRU)
-{
-	iconProperties << "color" << "background" << "default_colors";
+    : iconPath(filePath), cachePolicy(CachePolicy::LRU) {
+
+    iconProperties << "color" << "background" << "default_colors" << "size";
 
 	setDefaults(options);
 	setCachePolicy(cachePolicy);
 
-	loadCacheFromDisk();
-	connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &SvgIconEngine::saveCacheToDisk);
+	// loadCacheFromDisk();
+	// connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &SvgIconEngine::saveCacheToDisk);
 }
 
 SvgIconEngine::~SvgIconEngine() {
-	saveCacheToDisk();
+	// saveCacheToDisk();
 }
 
 void SvgIconEngine::setDefaults(const QVariantMap &options) {
@@ -38,84 +38,80 @@ void SvgIconEngine::setDefaults(const QVariantMap &options) {
     }
 }
 
-void SvgIconEngine::clearCache() {
-    pixmapCache.clear();
-}
-
-void SvgIconEngine::setCachePolicy(CachePolicy policy) {
-    cachePolicy = policy;
-    if (policy == CachePolicy::ALL) {
-        pixmapCache.setMaxCost(INT_MAX);
-    } else {
-        pixmapCache.setMaxCost(100);
-    }
-}
-
 QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, const QVariantMap &options) {
     QString filePath = QString("%1/%2/%3.svg").arg(iconPath).arg(style).arg(iconName);
-    QPixmap pixmap = getPixmap(filePath);
-
-    pixmap = applyOptions(pixmap, options);
+    QPixmap pixmap = getPixmap(filePath, options);
 
     return SvgIcon(pixmap);
 }
 
-QPixmap SvgIconEngine::getPixmap(const QString &filePath) {
-	if (cachePolicy != CachePolicy::NONE && pixmapCache.contains(filePath)) {
-		return *pixmapCache.object(filePath);
-	}
+QPixmap SvgIconEngine::getPixmap(const QString &filePath, const QVariantMap &options) {
+    QSvgRenderer *renderer = getRenderer(filePath);
 
-    return createPixmap(filePath);
-}
-
-QPixmap SvgIconEngine::createPixmap(const QString &filePath) {
-	QSvgRenderer renderer(filePath);
-
-	if (!renderer.isValid()) {
+    if (!renderer || !renderer->isValid()) {
         return drawNullIcon();
     }
 
-    QSize size = renderer.defaultSize();
-    QPixmap pixmap(size);
-    pixmap.fill(Qt::transparent);
+	auto getOption = [&](const QString &key) {
+        return options.value(key, defOptions.value(key, QVariant()));
+    };
 
-    QPainter painter(&pixmap);
-    renderer.render(&painter);
-    painter.end();
+    QSize size = renderer->defaultSize();
 
-    if (cachePolicy != CachePolicy::NONE) {
-    	pixmapCache.insert(filePath, new QPixmap(pixmap));
+    if (getOption("size").isValid()) {
+    	size = getOption("size").value<QSize>();
     }
 
-    return pixmap;
-}
-
-QPixmap SvgIconEngine::applyOptions(QPixmap pixmap, const QVariantMap &options) {
-	auto getOption = [&](const QString &key) {
-        return options.value(key, defOptions.value(key));
-    };
+    QPixmap pixmap(size);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    renderer->render(&painter);
 
     if (!getOption("default_colors").toBool()) {
     	QPixmap bgPixmap(pixmap.size());
 		bgPixmap.fill(getOption("background").value<QColor>());
 
-		QPainter painter(&bgPixmap);
-	    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		QPainter bgPainter(&bgPixmap);
+	    bgPainter.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
-		{
-			QPainter tempPainter(&pixmap);
-			tempPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-		    tempPainter.fillRect(pixmap.rect(), getOption("color").value<QColor>());
-		    tempPainter.end();
-		}
+			painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+		    painter.fillRect(pixmap.rect(), getOption("color").value<QColor>());
+		    painter.end();
 
-		painter.drawPixmap(0, 0, pixmap);
-	    painter.end();
+		bgPainter.drawPixmap(0, 0, pixmap);
+	    bgPainter.end();
 
-		return bgPixmap;
+		pixmap = bgPixmap;
+    }
+
+    if (pixmap.isNull()) {
+    	return drawNullIcon();
     }
 
     return pixmap;
+}
+
+QSvgRenderer* SvgIconEngine::getRenderer(const QString &filePath) {
+    QSvgRenderer *renderer = nullptr;
+
+	if (cachePolicy != CachePolicy::NONE && rendererCache.contains(filePath)) {
+        renderer = rendererCache.object(filePath);
+        if (renderer && renderer->isValid()) {
+	        return renderer;
+	    }
+	}
+
+    renderer = new QSvgRenderer(filePath);
+    if (!renderer->isValid()) {
+        delete renderer;
+        return nullptr;
+    }
+
+    if (cachePolicy != CachePolicy::NONE) {
+        rendererCache.insert(filePath, renderer);
+    }
+
+    return renderer;
 }
 
 QPixmap SvgIconEngine::drawNullIcon() {
@@ -166,75 +162,103 @@ void SvgIconEngine::logError(const QString &message) {
     // }
 }
 
-QString getCacheDirectory() {
-    QString appName = QApplication::applicationName();
-    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    return cacheDir + "/" + appName;
+void SvgIconEngine::clearCache() {
+    rendererCache.clear();
 }
 
-void SvgIconEngine::saveCacheToDisk() {
-	QMutexLocker locker(&cacheMutex);
-
-	if (cachePolicy == CachePolicy::NONE) {
-		return;
-	}
-
-	QString cacheDir = getCacheDirectory();
-    QString cachePath = cacheDir + "/SvgIconEngineCache.dat";
-
-    QDir dir;
-    if (!dir.exists(cacheDir)) {
-        dir.mkpath(cacheDir);
-    }
-
-    QFile file(cachePath);
-    if (file.open(QIODevice::WriteOnly)) {
-        QDataStream out(&file);
-
-        int cacheSize = (cachePolicy == CachePolicy::ALL) ? pixmapCache.size() : pixmapCache.maxCost();
-        out << cacheSize;
-        int count = 0;
-        foreach (const QString &key, pixmapCache.keys()) {
-            if (count >= cacheSize) {
-                break;
-            }
-            out << key;
-            out << *(pixmapCache.object(key));
-            ++count;
-        }
-        file.close();
+void SvgIconEngine::setCachePolicy(CachePolicy policy) {
+    cachePolicy = policy;
+    if (policy == CachePolicy::ALL) {
+        rendererCache.setMaxCost(INT_MAX);
     } else {
-        logError("Failed to open cache file for writing: " + cachePath);
+        rendererCache.setMaxCost(100);
     }
 }
 
-void SvgIconEngine::loadCacheFromDisk() {
-	QMutexLocker locker(&cacheMutex);
+// QString SvgIconEngine::getCacheDirectory() {
+//     QString appName = QApplication::applicationName();
+//     QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+//     return cacheDir + "/" + appName;
+// }
 
-	if (cachePolicy == CachePolicy::NONE) {
-		return;
-	}
+// void SvgIconEngine::saveCacheToDisk() {
+//     QMutexLocker locker(&cacheMutex);
 
-	QString cacheDir = getCacheDirectory();
-    QString cachePath = cacheDir + "/SvgIconEngineCache.dat";
+//     if (cachePolicy == CachePolicy::NONE) {
+//         return;
+//     }
 
-    QFile file(cachePath);
-    if (file.open(QIODevice::ReadOnly)) {
-        QDataStream in(&file);
+//     QString cacheDir = getCacheDirectory();
+//     QString cachePath = cacheDir + "/SvgIconEngineCache.dat";
 
-        int cacheSize;
-        in >> cacheSize;
+//     QDir dir;
+//     if (!dir.exists(cacheDir)) {
+//         dir.mkpath(cacheDir);
+//     }
 
-        int maxLoadSize = (cachePolicy == CachePolicy::ALL) ? cacheSize : qMin(cacheSize, pixmapCache.maxCost());
-        for (int i = 0; i < maxLoadSize; ++i) {
-            QString key;
-            QPixmap pixmap;
-            in >> key;
-            in >> pixmap;
-            pixmapCache.insert(key, new QPixmap(pixmap));
-        }
-        file.close();
-    } else {
-        logError("Failed to open cache file for reading: " + cachePath);
-    }
-}
+//     QFile file(cachePath);
+//     if (file.open(QIODevice::WriteOnly)) {
+//         QDataStream out(&file);
+
+//         int cacheSize = (cachePolicy == CachePolicy::ALL) ? rendererCache.size() : rendererCache.maxCost();
+//         out << cacheSize;
+//         int count = 0;
+//         for (const QString &key : rendererCache.keys()) {
+//             if (count >= cacheSize) {
+//                 break;
+//             }
+//             out << key;
+
+//             QSvgRenderer *renderer = rendererCache.object(key);
+//             QByteArray svgData;
+//             QBuffer buffer(&svgData);
+//             buffer.open(QIODevice::WriteOnly);
+//             renderer->render(&buffer);
+
+//             out << svgData;
+//             ++count;
+//         }
+//         file.close();
+//     } else {
+//         logError("Failed to open cache file for writing: " + cachePath);
+//     }
+// }
+
+
+// void SvgIconEngine::loadCacheFromDisk() {
+//     QMutexLocker locker(&cacheMutex);
+
+//     if (cachePolicy == CachePolicy::NONE) {
+//         return;
+//     }
+
+//     QString cacheDir = getCacheDirectory();
+//     QString cachePath = cacheDir + "/SvgIconEngineCache.dat";
+
+//     QFile file(cachePath);
+//     if (file.open(QIODevice::ReadOnly)) {
+//         QDataStream in(&file);
+
+//         int cacheSize;
+//         in >> cacheSize;
+
+//         int maxLoadSize = (cachePolicy == CachePolicy::ALL) ? cacheSize : qMin(cacheSize, rendererCache.maxCost());
+//         for (int i = 0; i < maxLoadSize; ++i) {
+//             QString key;
+//             QByteArray svgData;
+
+//             in >> key;
+//             in >> svgData;
+
+//             QSvgRenderer *renderer = new QSvgRenderer;
+//             QBuffer buffer(&svgData);
+//             buffer.open(QIODevice::ReadOnly);
+//             renderer->load(&buffer);
+
+//             rendererCache.insert(key, renderer);
+//         }
+//         file.close();
+//     } else {
+//         logError("Failed to open cache file for reading: " + cachePath);
+//     }
+// }

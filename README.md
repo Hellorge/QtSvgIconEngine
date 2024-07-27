@@ -17,7 +17,7 @@ iconEngine.setDefaults(<options>);
 
 iconEngine.setCachePolicy(CachePolicy::<policy>);
 // {ALL, NONE, LRU}
-// ALL: cache all icons, NONE: no caching, LRU: 100 pixmaps will be cache at once
+// ALL: cache all, NONE: no caching, LRU: 100 pixmaps will be cache at once
 
 iconEngine.clearCache();
 // clear pixmap cache, without cache pixmaps are generated from svg paths again.

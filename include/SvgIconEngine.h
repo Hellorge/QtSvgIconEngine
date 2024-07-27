@@ -32,21 +32,21 @@ private:
 	// static QPen pen;
 	QString iconPath;
 	QVariantMap defOptions;
-	QCache<QString, QPixmap> pixmapCache;
+	QCache<QString, QSvgRenderer> rendererCache;
 	CachePolicy cachePolicy;
 	QMutex cacheMutex;
 	QList<QString> iconProperties;
 
-	QPixmap getPixmap(const QString &filePath);
-    QPixmap createPixmap(const QString &filePath);
-    QPixmap applyOptions(QPixmap pixmap, const QVariantMap &options);
+	QPixmap getPixmap(const QString &filePath, const QVariantMap &options);
+    QSvgRenderer* getRenderer(const QString &filePath);
     QPixmap drawNullIcon();
+    QString getCacheDirectory();
     void loadIconAsync(const QString &filePath);
     void logError(const QString &message);
-    void loadCacheFromDisk();
+    // void loadCacheFromDisk();
 
 private slots:
-    void saveCacheToDisk();
+    // void saveCacheToDisk();
 };
 
 #endif // SVGICONENGINE_H

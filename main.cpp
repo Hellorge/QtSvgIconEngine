@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     colors["color"] = QColor(Qt::red);
     icons.append(iconEngine.getIcon("regular", "woman", colors));
 
-    // colors["default_colors"] = true;
+    colors["size"] = QSize(8, 8);
     icons.append(iconEngine.getIcon("regular", "calendar", colors));
 
     // icon.animateColorChange(Qt::red, Qt::blue, 1000);
