@@ -17,18 +17,19 @@
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
-    SvgIconEngine iconEngine(":/icons");
-
     QVariantMap colors;
-    QList<QIcon> icons;
-    icons.append(iconEngine.getIcon("regular", "calendar", colors));
+    SvgIconEngine iconEngine(":/icons", colors);
 
-    colors["color"] = QColor(Qt::red);
+    QList<QIcon> icons;
+    icons.append(iconEngine.getIcon("regular", "calendar"));
+
+    colors["color"] = QColor(Qt::blue);
     icons.append(iconEngine.getIcon("regular", "flag", colors));
 
-    colors["default_colors"] = true;
+    colors["color"] = QColor(Qt::red);
     icons.append(iconEngine.getIcon("regular", "woman", colors));
 
+    // colors["default_colors"] = true;
     icons.append(iconEngine.getIcon("regular", "calendar", colors));
 
     // icon.animateColorChange(Qt::red, Qt::blue, 1000);

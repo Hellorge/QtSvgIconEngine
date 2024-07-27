@@ -5,7 +5,7 @@ project(SvgIconEngine)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Svg)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Svg Concurrent)
 
 file(GLOB_RECURSE SVG_FILES "${CMAKE_SOURCE_DIR}/svgs/*.svg")
 file(WRITE "${CMAKE_BINARY_DIR}/resources.qrc" "<RCC>\n<qresource prefix=\"/icons\">\n")
@@ -30,9 +30,9 @@ set(HEADERS
 )
 
 add_library(SvgIconEngine STATIC ${SOURCES} ${HEADERS})
-target_link_libraries(SvgIconEngine PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg)
+target_link_libraries(SvgIconEngine PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Concurrent)
 include_directories(SvgIconEngine include)
 
 add_executable(icon_engine_test main.cpp ${RESOURCES})
-target_link_libraries(icon_engine_test PRIVATE SvgIconEngine Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg)
+target_link_libraries(icon_engine_test PRIVATE SvgIconEngine Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Concurrent)
 include_directories(icon_engine_test include)

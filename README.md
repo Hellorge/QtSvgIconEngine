@@ -7,26 +7,38 @@ Merge requests are welcome, I'll only work on or add functionality I deem requir
 
 ### Usage
 ```
-SvgIconEngine iconEngine(<path/to/svg/files/directory>);
+SvgIconEngine iconEngine(<path/to/svg/files/directory>, <options>);
 SvgIcon icon = iconEngine.getIcon(<style>, <icon_name>, <options>);
 ```
 
 ### Arguments
+1. `SvgIconEngine::SvgIconEngine` SvgIconEngine constructor
+	  - `path/to/svg/files/directory` | QString | Required
 
-1. `style` | QString
+    	Folders path where icons are located,
 
-    Folders path between `<path/to/svg/files/directory>` and svg file,
+    - `options` | QVariantMap
 
-3. `icon_name` | QString
+    	Set default options for all new icons
 
-   Svg filename without extension
+2. `SvgIconEngine::getIcon` get an icon
+	  - `style` | QString | Required
 
-5. `options` | QVariantMap
+    	Folders path between `<path/to/svg/files/directory>` and svg file,
 
-    | QVariant  |  Value Type  | Default Value |    Ex. Value    | Use |
-    | ------------------ | ------ | ------------- | --------------- | --- |
-    | color              | QColor | QApplication::palette().text().color() | QColor(Qt::red) | Color used to fill icon |
-    | default_colors     |  bool  | false | true/false | If icon colors remain as in svg file |
+    - `icon_name` | QString | Required
+
+    	Svg filename without extension
+
+    - `options` | QVariantMap
+
+   		Set options for required icon
+
+### `<options>`
+|    QVariant    |  Value Type  | Default Value |    Ex. Value    | Use |
+| -------------- | ------------ | ------------- | --------------- | --- |
+| color          |    QColor    | QApplication::palette().text().color() | QColor(Qt::red) | Color used to fill icon |
+| default_colors |     bool     | false | true/false | If icon colors remain as in svg file |
 
 ### Example
 An svg file at `/home/user/pictures/svgs/regular/calendar.svg`
