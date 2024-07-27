@@ -8,7 +8,19 @@ Merge requests are welcome, I'll only work on or add functionality I deem requir
 ### Usage
 ```
 SvgIconEngine iconEngine(<path/to/svg/files/directory>, <options>);
+
 SvgIcon icon = iconEngine.getIcon(<style>, <icon_name>, <options>);
+// to get an icon
+
+iconEngine.setDefaults(<ptions>);
+// set new default options
+
+iconEngine.setCachePolicy(CachePolicy policy);
+// {ALL, NONE, LRU}
+// ALL: cache all icons, NONE: no caching, LRU: 100 pixmaps will be cache at once
+
+iconEngine.clearCache();
+// clear pixmap cache, without cache pixmaps are generated from svg paths again.
 ```
 
 ### Arguments
