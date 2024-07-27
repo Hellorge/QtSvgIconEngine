@@ -15,7 +15,7 @@ SvgIcon icon = iconEngine.getIcon(<style>, <icon_name>, <options>);
 iconEngine.setDefaults(<options>);
 // set new default options
 
-iconEngine.setCachePolicy(<policy>);
+iconEngine.setCachePolicy(CachePolicy::<policy>);
 // {ALL, NONE, LRU}
 // ALL: cache all icons, NONE: no caching, LRU: 100 pixmaps will be cache at once
 
