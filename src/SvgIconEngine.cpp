@@ -5,13 +5,14 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QMutexLocker>
+#include <QGraphicsDropShadowEffect>
+#include <QGraphicsScene>
+#include <QGraphicsPixmapItem>
 
 Q_LOGGING_CATEGORY(lcSvgIconEngine, "svgiconengine")
 
 SvgIconEngine::SvgIconEngine(const QString &filePath, const QVariantMap &options)
     : iconPath(filePath), cachePolicy(CachePolicy::LRU) {
-
-    iconProperties << "color" << "background" << "default_colors" << "size";
 
 	setDefaults(options);
 	setCachePolicy(cachePolicy);
@@ -25,18 +26,24 @@ SvgIconEngine::~SvgIconEngine() {
 }
 
 void SvgIconEngine::setDefaults(const QVariantMap &options) {
-	defOptions = options;
+    defOptions.insert("color", QApplication::palette().text().color());
+    defOptions.insert("background", QColor(Qt::transparent));
+    defOptions.insert("default_colors", false);
+    defOptions.insert("opacity", 1.0);
+    defOptions.insert("border_color", QApplication::palette().text().color());
+    defOptions.insert("border_width", 0);
+    defOptions.insert("shadow", false);
 
-	if (!defOptions.contains("color") || !defOptions.value("color").isValid()) {
-        defOptions.insert("color", QApplication::palette().text().color());
-    }
+    for (auto it = defOptions.constBegin(); it != defOptions.constEnd(); ++it) {
+        QString property = it.key();
 
-   	if (!defOptions.contains("background") || !defOptions.value("background").isValid()) {
-        defOptions.insert("background", QColor(Qt::transparent));
-    }
-
-   	if (!defOptions.contains("default_colors")) {
-        defOptions.insert("default_colors", false);
+		if (options.contains(property)) {
+			if (options.value(property).isValid()) {
+				defOptions.insert(property, options.value(property));
+			} else {
+				qCWarning(lcSvgIconEngine) << "SvgIconEngine Error: Value for option" << property << "is invalild";;
+			}
+		}
     }
 }
 
@@ -48,7 +55,7 @@ QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, cons
 }
 
 QPixmap SvgIconEngine::getPixmap(const QString &filePath, const QVariantMap &options) {
-    std::unique_ptr<QSvgRenderer> renderer(getRenderer(filePath));
+	QSvgRenderer *renderer = getRenderer(filePath);
 
     if (!renderer || !renderer->isValid()) {
         qCWarning(lcSvgIconEngine) << "Failed to get a valid QSvgRenderer for" << filePath;
@@ -60,7 +67,6 @@ QPixmap SvgIconEngine::getPixmap(const QString &filePath, const QVariantMap &opt
     };
 
     QSize size = renderer->defaultSize();
-
     if (getOption("size").isValid()) {
         size = getOption("size").toSize();
     }
@@ -77,18 +83,46 @@ QPixmap SvgIconEngine::getPixmap(const QString &filePath, const QVariantMap &opt
 		QPainter bgPainter(&bgPixmap);
 	    bgPainter.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
-			painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-		    painter.fillRect(pixmap.rect(), getOption("color").value<QColor>());
-		    painter.end();
+		qreal opacity = getOption("opacity").toReal();
+	    bgPainter.setOpacity(opacity);
 
+		painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	    painter.fillRect(pixmap.rect(), getOption("color").value<QColor>());
+	    painter.end();
 		bgPainter.drawPixmap(0, 0, pixmap);
+
+		if (getOption("border_width").toInt() > 0) {
+	        bgPainter.setPen(QPen(
+				getOption("border_color").value<QColor>(),
+				getOption("border_width").toInt())
+			);
+	        bgPainter.drawRect(0, 0, pixmap.width() - 1, pixmap.height() - 1);
+	    }
+
+
 	    bgPainter.end();
 
 		pixmap = bgPixmap;
     }
 
+    // if (getOption("shadow").toBool()) {
+    //     QGraphicsScene scene;
+    //     QGraphicsPixmapItem item;
+    //     item.setPixmap(pixmap);
+    //     QGraphicsDropShadowEffect *effect = new QGraphicsDropShadowEffect;
+    //     effect->setBlurRadius(10);
+    //     effect->setOffset(5, 5);
+    //     item.setGraphicsEffect(effect);
+    //     scene.addItem(&item);
+    //     QPixmap shadowPixmap(pixmap.size() + QSize(10, 10));
+    //     shadowPixmap.fill(Qt::transparent);
+    //     QPainter shadowPainter(&shadowPixmap);
+    //     scene.render(&shadowPainter, QRectF(), QRectF(0, 0, shadowPixmap.width(), shadowPixmap.height()));
+    //     pixmap = shadowPixmap;
+    // }
+
     if (pixmap.isNull()) {
-        qCWarning(lcSvgIconEngine) << "Generated pixmap is null.";
+        qCWarning(lcSvgIconEngine) << "Generated pixmap is null: " << filePath;
     	return drawNullIcon();
     }
 

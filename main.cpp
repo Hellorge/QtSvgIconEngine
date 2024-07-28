@@ -24,16 +24,20 @@ int main(int argc, char *argv[]) {
     );
 
     QVariantMap colors;
+    colors["color"] = QColor(Qt::blue);
+    // colors["background"] = QColor(Qt::green);
     SvgIconEngine iconEngine(":/icons", colors);
 
     QList<QIcon> icons;
     icons.append(iconEngine.getIcon("regular", "calendar"));
 
-    colors["color"] = QColor(Qt::blue);
-    colors["background"] = QColor(Qt::green);
-    icons.append(iconEngine.getIcon("regular", "flag", colors));
+    colors["shadow"] = true;
+    icons.append(iconEngine.getIcon("regular", "flag"));
 
     colors["color"] = QColor(Qt::red);
+    colors["opacity"] = .5;
+    colors["border_width"] = 100;
+	// shadow
     icons.append(iconEngine.getIcon("regular", "woman", colors));
 
     colors["size"] = QSize(8, 8);
