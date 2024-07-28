@@ -25,32 +25,29 @@ int main(int argc, char *argv[]) {
 
     QVariantMap colors;
     colors["color"] = QColor(Qt::blue);
+    colors["size"] = QSize(64, 64);
     // colors["background"] = QColor(Qt::green);
     SvgIconEngine iconEngine(":/icons", colors);
 
-    QList<QIcon> icons;
-    icons.append(iconEngine.getIcon("regular", "calendar"));
+    QList<SvgIcon*> icons;
+    icons.append(iconEngine.getIcon("regular", "calendar", colors));
 
     colors["shadow"] = true;
     icons.append(iconEngine.getIcon("regular", "flag"));
 
     colors["color"] = QColor(Qt::red);
-    colors["opacity"] = .5;
+    colors["opacity"] = .6;
     colors["border_width"] = 100;
-	// shadow
+
     icons.append(iconEngine.getIcon("regular", "woman", colors));
 
-    colors["size"] = QSize(8, 8);
     icons.append(iconEngine.getIcon("regular", "calendar", colors));
 
     QWidget mainWindow;
     QVBoxLayout *mainLayout = new QVBoxLayout(&mainWindow);
 
     for (int i = 0; i < icons.count() ; i++) {
-	    QLabel *label = new QLabel;
-	    label->setPixmap(icons[i].pixmap(64, 64));
-
-		mainLayout->addWidget(label);
+		mainLayout->addWidget(icons[i]);
     }
 
     mainWindow.show();

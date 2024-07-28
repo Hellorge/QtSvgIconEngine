@@ -24,7 +24,8 @@ public:
     explicit SvgIconEngine(const QString &filePath, const QVariantMap &options = QVariantMap());
     ~SvgIconEngine();
 
-    QIcon getIcon(const QString &style, const QString &iconName, const QVariantMap &options = QVariantMap());
+    SvgIcon* getIcon(const QString &style, const QString &iconName);
+    SvgIcon* getIcon(const QString &style, const QString &iconName, QVariantMap &options);
 	void setDefaults(const QVariantMap &options);
     void clearCache();
     void setCachePolicy(CachePolicy policy);
@@ -38,9 +39,9 @@ private:
 	QMutex cacheMutex;
 	QList<QString> iconProperties;
 
-	QPixmap getPixmap(const QString &filePath, const QVariantMap &options);
-    QSvgRenderer* getRenderer(const QString &filePath);
-    QPixmap drawNullIcon();
+    QVariantMap getOptions(const QSvgRenderer *renderer, QVariantMap &options);
+	QSvgRenderer* getRenderer(const QString &filePath);
+    QIcon drawNullIcon();
     QString getCacheDirectory();
     void loadIconAsync(const QString &filePath);
     void logError(const QString &message);
