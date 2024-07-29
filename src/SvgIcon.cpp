@@ -3,12 +3,8 @@
 #include "SvgIcon.h"
 
 SvgIcon::SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent)
-    : QSvgWidget(parent), m_renderer(renderer)  {
-    // setMinimumSize(100, 100);
-    // setMaximumSize(100, 100);
-
+    : QSvgWidget(parent), m_renderer(renderer) {
     setOptions(options);
-
     updateCachedImage();
 }
 
@@ -84,24 +80,25 @@ void SvgIcon::setScale(const qreal scale) {
 }
 
 QColor SvgIcon::borderColor() const {
-	return m_borderColor;
+    return m_borderColor;
 }
+
 void SvgIcon::setBorderColor(const QColor &borderColor) {
-	if (m_borderColor != borderColor) {
-		m_borderColor = borderColor;
-		update();
-	}
+    if (m_borderColor != borderColor) {
+        m_borderColor = borderColor;
+        update();
+    }
 }
 
 qreal SvgIcon::borderWidth() const {
-	return m_borderWidth;
+    return m_borderWidth;
 }
 
 void SvgIcon::setBorderWidth(const qreal borderWidth) {
-	if (m_borderWidth != borderWidth) {
-		m_borderWidth = borderWidth;
-		update();
-	}
+    if (m_borderWidth != borderWidth) {
+        m_borderWidth = borderWidth;
+        update();
+    }
 }
 
 // void SvgIcon::loadSvg(const QString &filePath) {
@@ -123,24 +120,27 @@ void SvgIcon::updateCachedImage() {
 }
 
 void SvgIcon::paintEvent(QPaintEvent *event) {
+    if (m_cachedImage.isNull()) {
+        return;
+    }
+
     QPainter painter(this);
     painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform, true);
 
-    if (!m_cachedImage.isNull()) {
-        painter.fillRect(m_cachedImage.rect(), m_background);
+    const QRect rect = m_cachedImage.rect();
+    painter.fillRect(rect, m_background);
 
-        QImage coloredImage = m_cachedImage;
-
-        if (m_color != Qt::transparent) {
-            QPainter imagePainter(&coloredImage);
-            imagePainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-            imagePainter.fillRect(coloredImage.rect(), m_color);
-        }
-
-        painter.setOpacity(m_opacity);
-
-        QSize imgSize = m_cachedImage.size() * m_scale;
-        QPoint center((width() - imgSize.width()) / 2, (height() - imgSize.height()) / 2);
-        painter.drawImage(QRect(center, imgSize), coloredImage);
+    QImage coloredImage = m_cachedImage;
+    if (m_color!= Qt::transparent) {
+        QPainter imagePainter(&coloredImage);
+        imagePainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        imagePainter.fillRect(rect, m_color);
     }
+
+    painter.setOpacity(m_opacity);
+
+    const QSize imgSize = m_cachedImage.size() * m_scale;
+    const QPoint center((width() - imgSize.width()) / 2, (height() - imgSize.height()) / 2);
+    painter.drawImage(QRect(center, imgSize), coloredImage);
 }
+
