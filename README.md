@@ -51,15 +51,16 @@ iconEngine.clearCache();
    		Set options for required icon
 
 ### `<options>`
-| QVariant       | Value Type | Default Value                          | Ex. Value         | Use |
-| -------------- | ---------- | -------------------------------------- | ----------------- | --- |
-| color          | QColor     | QApplication::palette().text().color() | QColor(Qt::red)   | Color used to fill icon |
-| size           | QSize      | QSvgRenderer.defaultSize()             | QSize(64, 64)     | Icon size |
-| default_colors | bool       | false                                  | true/false        | If icon colors remain as in svg file |
-| background     | QColor     | Qt::transparent                        | QColor(Qt::red)   | Background fill for icons |
-| opacity        | int        | 1                                      | QColor(Qt::red)   | Icon opacity |
-| border_color   | QColor     | QApplication::palette().text().color() | QColor(Qt::black) | Color for border around icon |
-| border_width   | int	      | 0                                      | 10                | Border width |
+| QVariant       | Value Type | Default Value                          | Ex. Value         | Animates? | Use |
+| -------------- | ---------- | -------------------------------------- | ----------------- | --------- | --- |
+| color          | QColor     | QApplication::palette().text().color() | QColor(Qt::red)   | Yes       | Color used to fill icon |
+| background     | QColor     | Qt::transparent                        | QColor(Qt::red)   | Yes       | Background fill for icons |
+| size           | QSize      | QSvgRenderer.defaultSize()             | QSize(64, 64)     | Yes       | Icon size |
+| scale          | qreal      | 1                                      | 2                 | Yes       | Image size inside icon box |
+| opacity        | qreal      | 1                                      | .5                | Yes       | Icon opacity |
+| border_color   | QColor     | QApplication::palette().text().color() | QColor(Qt::black) | Will       | Color for border around icon |
+| border_width   | qreal      | 0                                      | 10                | Will       | Border width |
+| default_colors | bool       | false                                  | true/false        | No        | If icon colors remain as in svg file |
 
 ### Example
 An svg file at `/home/user/pictures/svgs/regular/calendar.svg`

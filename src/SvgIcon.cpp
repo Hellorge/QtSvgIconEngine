@@ -18,9 +18,12 @@ SvgIcon::~SvgIcon() {
 
 void SvgIcon::setOptions(const QVariantMap &options) {
     m_color = options.value("color").value<QColor>();
-    m_opacity = options.value("opacity").toInt();
+    m_background = options.value("background").value<QColor>();
+    m_opacity = options.value("opacity").toReal();
+    m_scale = options.value("scale").toReal();
+    m_borderColor = options.value("border_color").value<QColor>();
+    m_borderWidth = options.value("border_width").toReal();
     default_colors = options.value("default_colors").toBool();
-    m_imageScale = 1.0;
     setFixedSize(options.value("size").toSize());
 }
 
@@ -35,22 +38,33 @@ void SvgIcon::setColor(const QColor &color) {
     }
 }
 
+QColor SvgIcon::background() const {
+    return m_background;
+}
+
+void SvgIcon::setBackground(const QColor &background) {
+    if (m_background != background) {
+        m_background = background;
+        update();
+    }
+}
+
 qreal SvgIcon::opacity() const {
     return m_opacity;
 }
 
-void SvgIcon::setOpacity(qreal opacity) {
+void SvgIcon::setOpacity(const qreal opacity) {
     if (m_opacity != opacity) {
         m_opacity = opacity;
         update();
     }
 }
 
-QSize SvgIcon::iconSize() const {
-    return size();
-}
+// QSize SvgIcon::size() const {
+//     return size();
+// }
 
-void SvgIcon::setIconSize(const QSize &size) {
+void SvgIcon::setSize(const QSize &size) {
     if (size != this->size()) {
         setFixedSize(size);
         updateCachedImage();
@@ -58,15 +72,36 @@ void SvgIcon::setIconSize(const QSize &size) {
     }
 }
 
-qreal SvgIcon::imageScale() const {
-    return m_imageScale;
+qreal SvgIcon::scale() const {
+    return m_scale;
 }
 
-void SvgIcon::setImageScale(qreal scale) {
-    if (scale != m_imageScale) {
-        m_imageScale = scale;
+void SvgIcon::setScale(const qreal scale) {
+    if (m_scale != scale) {
+        m_scale = scale;
         update();
     }
+}
+
+QColor SvgIcon::borderColor() const {
+	return m_borderColor;
+}
+void SvgIcon::setBorderColor(const QColor &borderColor) {
+	if (m_borderColor != borderColor) {
+		m_borderColor = borderColor;
+		update();
+	}
+}
+
+qreal SvgIcon::borderWidth() const {
+	return m_borderWidth;
+}
+
+void SvgIcon::setBorderWidth(const qreal borderWidth) {
+	if (m_borderWidth != borderWidth) {
+		m_borderWidth = borderWidth;
+		update();
+	}
 }
 
 // void SvgIcon::loadSvg(const QString &filePath) {
@@ -89,19 +124,22 @@ void SvgIcon::updateCachedImage() {
 
 void SvgIcon::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform, true);
 
     if (!m_cachedImage.isNull()) {
+        painter.fillRect(m_cachedImage.rect(), m_background);
+
         QImage coloredImage = m_cachedImage;
-        QPainter imagePainter(&coloredImage);
-        imagePainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        imagePainter.fillRect(coloredImage.rect(), m_color);
-        imagePainter.end();
+
+        if (m_color != Qt::transparent) {
+            QPainter imagePainter(&coloredImage);
+            imagePainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            imagePainter.fillRect(coloredImage.rect(), m_color);
+        }
 
         painter.setOpacity(m_opacity);
 
-        QSize imgSize = m_cachedImage.size() * m_imageScale;
+        QSize imgSize = m_cachedImage.size() * m_scale;
         QPoint center((width() - imgSize.width()) / 2, (height() - imgSize.height()) / 2);
         painter.drawImage(QRect(center, imgSize), coloredImage);
     }

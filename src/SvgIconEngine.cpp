@@ -32,6 +32,7 @@ void SvgIconEngine::setDefaults(const QVariantMap &options) {
     defOptions.insert("border_color", QApplication::palette().text().color());
     defOptions.insert("border_width", 0);
     defOptions.insert("shadow", false);
+    defOptions.insert("scale", 1);
 
     for (auto it = defOptions.constBegin(); it != defOptions.constEnd(); ++it) {
         QString property = it.key();
