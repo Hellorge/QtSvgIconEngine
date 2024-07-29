@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     QVariantMap colors;
     colors["default_colors"] = true;
     // colors["color"] = QColor(Qt::blue);
-    // colors["size"] = QSize(64, 64);
+    colors["size"] = QSize(64, 64);
     // colors["background"] = QColor(Qt::green);
     SvgIconEngine iconEngine(":/icons", colors);
 
