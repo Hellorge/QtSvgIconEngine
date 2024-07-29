@@ -1,3 +1,18 @@
+/* This file is part of QtSvgIconEngine.
+
+QtSvgIconEngine is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or any later version.
+
+QtSvgIconEngine is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with QtSvgIconEngine.  If not, see <https://www.gnu.org/licenses/>. */
+
+
 #include "SvgIcon.h"
 
 SvgIcon::SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent)
@@ -17,6 +32,7 @@ SvgIcon::~SvgIcon() {
 void SvgIcon::setOptions(const QVariantMap &options) {
     m_color = options.value("color").value<QColor>();
     m_opacity = options.value("opacity").toInt();
+    default_colors = options.value("default_colors").toBool();
     m_imageScale = 1.0;
     setFixedSize(options.value("size").toSize());
 }
@@ -26,7 +42,7 @@ QColor SvgIcon::color() const {
 }
 
 void SvgIcon::setColor(const QColor &color) {
-    if (color != m_color) {
+    if (m_color != color) {
         m_color = color;
         update();
     }
@@ -37,7 +53,7 @@ qreal SvgIcon::opacity() const {
 }
 
 void SvgIcon::setOpacity(qreal opacity) {
-    if (opacity != m_opacity) {
+    if (m_opacity != opacity) {
         m_opacity = opacity;
         update();
     }
@@ -66,12 +82,12 @@ void SvgIcon::setImageScale(qreal scale) {
     }
 }
 
-void SvgIcon::loadSvg(const QString &filePath) {
-    delete m_renderer;
-    m_renderer = new QSvgRenderer(filePath, this);
-    updateCachedImage();
-    update();
-}
+// void SvgIcon::loadSvg(const QString &filePath) {
+//     delete m_renderer;
+//     m_renderer = new QSvgRenderer(filePath, this);
+//     updateCachedImage();
+//     update();
+// }
 
 void SvgIcon::updateCachedImage() {
     if (m_renderer->isValid()) {

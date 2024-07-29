@@ -42,6 +42,7 @@ private:
     qreal m_opacity;
     qreal m_imageScale;
     QImage m_cachedImage;
+    bool default_colors;
 
     void updateCachedImage();
     void setOptions(const QVariantMap &options);
