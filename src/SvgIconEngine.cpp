@@ -1,16 +1,4 @@
-/* This file is part of QtSvgIconEngine.
-
-QtSvgIconEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or any later version.
-
-QtSvgIconEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with QtSvgIconEngine.  If not, see <https://www.gnu.org/licenses/>. */
+// This file is part of QtSvgIconEngine, under GNU LGPL license, for more info see LICENSE.
 
 #include "SvgIconEngine.h"
 #include <QDebug>
@@ -110,7 +98,7 @@ QSvgRenderer* SvgIconEngine::getRenderer(const QString &filePath) {
 
     renderer = new QSvgRenderer(filePath);
     if (!renderer->isValid()) {
-        qCCritical(lcSvgIconEngine) << "Failed to create a valid QSvgRenderer for" << filePath;
+        logError(QString("Failed to create a valid QSvgRenderer for '%1'").arg(filePath));
         delete renderer;
         return nullptr;
     }
@@ -229,7 +217,7 @@ void SvgIconEngine::setCachePolicy(CachePolicy policy) {
 //         }
 //         file.close();
 //     } else {
-//         qCCritical(lcSvgIconEngine) << "Failed to open cache file for writing:" << cachePath;
+//         logError(QString("Failed to open cache file for writing: %1").arg(cachePath);
 //     }
 // }
 
@@ -267,6 +255,6 @@ void SvgIconEngine::setCachePolicy(CachePolicy policy) {
 //         }
 //         file.close();
 //     } else {
-//         qCCritical(lcSvgIconEngine) << "Failed to open cache file for reading:" << cachePath;
+//         logError(QString("Failed to open cache file for reading: %1").arg(cachePath);
 //     }
 // }
