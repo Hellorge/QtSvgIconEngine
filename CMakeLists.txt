@@ -19,5 +19,5 @@ set(HEADERS
 )
 
 add_library(SvgIconEngine STATIC ${SOURCES} ${HEADERS})
-target_link_libraries(SvgIconEngine Qt6::SvgWidgets Qt6::Concurrent)
+target_link_libraries(SvgIconEngine PUBLIC Qt6::SvgWidgets Qt6::Concurrent)
 target_include_directories(SvgIconEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

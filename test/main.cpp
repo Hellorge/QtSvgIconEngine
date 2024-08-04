@@ -50,7 +50,15 @@ int main(int argc, char *argv[]) {
     QVBoxLayout *mainLayout = new QVBoxLayout(&mainWindow);
 
     for (int i = 0; i < icons.count() ; i++) {
-		mainLayout->addWidget(icons[i]);
+        QPushButton *btn = new QPushButton(icons[i]->toIcon(), "");
+
+        QObject::connect(icons[i], &SvgIcon::iconChanged, [=]() {
+            btn->setIcon(icons[i]->toIcon());
+            btn->update();
+        });
+
+        mainLayout->addWidget(btn);
+        mainLayout->addWidget(icons[i]);
     }
 
     mainWindow.show();

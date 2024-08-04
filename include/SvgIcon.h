@@ -43,7 +43,8 @@ public:
     qreal borderWidth() const;
     void setBorderWidth(const qreal borderWidth);
 
-    void loadSvg(const QString &filePath);
+    // void loadSvg(const QString &filePath);
+    const QIcon& toIcon();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -51,6 +52,7 @@ protected:
 private:
     QSvgRenderer *m_renderer;
     QImage m_cachedImage;
+    QIcon m_icon;
 
     QColor m_color;
     QColor m_background;
@@ -62,6 +64,9 @@ private:
 
     void updateCachedImage();
     void setOptions(const QVariantMap &options);
+
+signals:
+    void iconChanged();
 };
 
 #endif // SVGICON_H

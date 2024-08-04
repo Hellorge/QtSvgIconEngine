@@ -142,5 +142,11 @@ void SvgIcon::paintEvent(QPaintEvent *event) {
     const QSize imgSize = m_cachedImage.size() * m_scale;
     const QPoint center((width() - imgSize.width()) / 2, (height() - imgSize.height()) / 2);
     painter.drawImage(QRect(center, imgSize), coloredImage);
+
+    m_icon = QIcon(QPixmap::fromImage(coloredImage));
+    emit iconChanged();
 }
 
+const QIcon& SvgIcon::toIcon() {
+    return m_icon;
+}
