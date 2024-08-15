@@ -58,8 +58,8 @@ iconEngine.clearCache();
 | size           | QSize      | QSvgRenderer.defaultSize()             | QSize(64, 64)     | Yes       | Icon size |
 | scale          | qreal      | 1                                      | 2                 | Yes       | Image size inside icon box |
 | opacity        | qreal      | 1                                      | .5                | Yes       | Icon opacity |
-| border_color   | QColor     | QApplication::palette().text().color() | QColor(Qt::black) | Will       | Color for border around icon |
-| border_width   | qreal      | 0                                      | 10                | Will       | Border width |
+| border_color   | QColor     | QApplication::palette().text().color() | QColor(Qt::black) | Will      | Color for border around icon |
+| border_width   | qreal      | 0                                      | 10                | Will      | Border width |
 | default_colors | bool       | false                                  | true/false        | No        | If icon colors remain as in svg file |
 
 ### Example
