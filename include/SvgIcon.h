@@ -1,14 +1,15 @@
 #ifndef SVGICON_H
 #define SVGICON_H
 
-#include <QIconEngine>
+#include <QSvgWidget>
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QColor>
 #include <QPropertyAnimation>
 #include <QImage>
 
-class SvgIcon : public QIconEngine {
+class SvgIcon : public QSvgWidget {
+    Q_OBJECT
     Q_PROPERTY(QColor color READ color WRITE setColor)
     Q_PROPERTY(QColor background READ background WRITE setBackground)
     Q_PROPERTY(qreal opacity READ opacity WRITE setOpacity)
@@ -30,7 +31,7 @@ public:
     qreal opacity() const;
     void setOpacity(const qreal opacity);
 
-    QSize size() const;
+    // QSize size() const;
     void setSize(const QSize &size);
 
     qreal scale() const;
@@ -42,18 +43,19 @@ public:
     qreal borderWidth() const;
     void setBorderWidth(const qreal borderWidth);
 
-	void paint(QPainter *painter, const QRect &rect, QIcon::Mode mode, QIcon::State state) override;
-	QIconEngine *clone() const override;
+    // void loadSvg(const QString &filePath);
+    const QIcon& toIcon();
 
-	// void loadSvg(const QString &filePath);
+protected:
+    void paintEvent(QPaintEvent *event) override;
 
 private:
     QSvgRenderer *m_renderer;
     QImage m_cachedImage;
+    QIcon m_icon;
 
     QColor m_color;
     QColor m_background;
-    QSize m_size;
     qreal m_opacity;
     qreal m_scale;
     QColor m_borderColor;

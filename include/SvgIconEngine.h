@@ -24,8 +24,8 @@ public:
     explicit SvgIconEngine(const QString &filePath, const QVariantMap &options = QVariantMap());
     ~SvgIconEngine();
 
-    const QIcon getIcon(const QString &style, const QString &iconName);
-    const QIcon getIcon(const QString &style, const QString &iconName, QVariantMap &options);
+    SvgIcon* getIcon(const QString &style, const QString &iconName);
+    SvgIcon* getIcon(const QString &style, const QString &iconName, QVariantMap &options);
 	void setDefaults(const QVariantMap &options);
     void clearCache();
     void setCachePolicy(CachePolicy policy);

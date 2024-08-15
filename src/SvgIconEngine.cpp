@@ -51,12 +51,12 @@ void SvgIconEngine::setDefaults(const QVariantMap &options) {
     }
 }
 
-const QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName) {
+SvgIcon* SvgIconEngine::getIcon(const QString &style, const QString &iconName) {
     QVariantMap options;
     return getIcon(style, iconName, options);
 }
 
-const QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName, QVariantMap &options) {
+SvgIcon* SvgIconEngine::getIcon(const QString &style, const QString &iconName, QVariantMap &options) {
     QString filePath = QString("%1/%2/%3.svg").arg(iconPath).arg(style).arg(iconName);
 
     QSvgRenderer *renderer = getRenderer(filePath);
@@ -68,9 +68,7 @@ const QIcon SvgIconEngine::getIcon(const QString &style, const QString &iconName
 
     options = getOptions(renderer, options);
 
-    SvgIcon *iconEngine = new SvgIcon(renderer, options);
-    QIcon icon(iconEngine);
-    return icon;
+    return new SvgIcon(renderer, options);
 }
 
 QVariantMap SvgIconEngine::getOptions(const QSvgRenderer *renderer, QVariantMap &options) {
