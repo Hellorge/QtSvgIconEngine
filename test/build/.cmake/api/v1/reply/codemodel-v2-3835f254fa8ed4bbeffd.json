@@ -1,0 +1,120 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"jsonFile" : "directory-.-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"build" : "SvgIconEngineBuild",
+					"jsonFile" : "directory-SvgIconEngineBuild-bc91abe2c8022093c585.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine",
+					"targetIndexes" : 
+					[
+						0,
+						2,
+						3
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "SvgIconEngineTest",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "SvgIconEngine",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "SvgIconEngine::@9ed0954fe458c3a6d94f",
+					"jsonFile" : "target-SvgIconEngine-360621aaf95f342c60e1.json",
+					"name" : "SvgIconEngine",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "SvgIconEngineTest::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-SvgIconEngineTest-ad9669170b99bc971390.json",
+					"name" : "SvgIconEngineTest",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "SvgIconEngine_autogen::@9ed0954fe458c3a6d94f",
+					"jsonFile" : "target-SvgIconEngine_autogen-456eab559467eef902c9.json",
+					"name" : "SvgIconEngine_autogen",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "SvgIconEngine_autogen_timestamp_deps::@9ed0954fe458c3a6d94f",
+					"jsonFile" : "target-SvgIconEngine_autogen_timestamp_deps-8943fdcdbfa0947f688d.json",
+					"name" : "SvgIconEngine_autogen_timestamp_deps",
+					"projectIndex" : 1
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build",
+		"source" : "/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

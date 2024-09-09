@@ -1,0 +1,27 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"id" : "SvgIconEngine_autogen_timestamp_deps::@9ed0954fe458c3a6d94f",
+	"isGeneratorProvided" : true,
+	"name" : "SvgIconEngine_autogen_timestamp_deps",
+	"paths" : 
+	{
+		"build" : "SvgIconEngineBuild",
+		"source" : "/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine"
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

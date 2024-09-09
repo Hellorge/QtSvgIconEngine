@@ -1,0 +1,4 @@
+set(__QT_DEPLOY_TARGET_SvgIconEngine_FILE /run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/SvgIconEngineBuild/libSvgIconEngine.a)
+set(__QT_DEPLOY_TARGET_SvgIconEngine_TYPE STATIC_LIBRARY)
+set(__QT_DEPLOY_TARGET_SvgIconEngineTest_FILE /run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/SvgIconEngineTest)
+set(__QT_DEPLOY_TARGET_SvgIconEngineTest_TYPE EXECUTABLE)
