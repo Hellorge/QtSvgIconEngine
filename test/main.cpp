@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
     // colors["border_width"] = 100;
 
     icons.append(iconEngine.getIcon("regular", "woman", colors));
+    icons.append(iconEngine.getIconFromSprite("regular", "add-circle", "path", colors));
 
     colors["background"] = QColor(Qt::green);
     icons.append(iconEngine.getIcon("regular", "calendar", colors));

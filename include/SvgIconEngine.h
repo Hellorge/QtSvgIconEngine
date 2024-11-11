@@ -26,6 +26,8 @@ public:
 
     SvgIcon* getIcon(const QString &style, const QString &iconName);
     SvgIcon* getIcon(const QString &style, const QString &iconName, QVariantMap &options);
+    SvgIcon* getIconFromSprite(const QString &style, const QString &iconName, const QString &elementId);
+    SvgIcon* getIconFromSprite(const QString &style, const QString &iconName, const QString &elementId, QVariantMap &options);
 	void setDefaults(const QVariantMap &options);
     void clearCache();
     void setCachePolicy(CachePolicy policy);
@@ -40,7 +42,8 @@ private:
 	QList<QString> iconProperties;
 
     QVariantMap getOptions(const QSvgRenderer *renderer, QVariantMap &options);
-	QSvgRenderer* getRenderer(const QString &filePath);
+    const QString getFilePath(const QString &style, const QString &iconName);
+    QSvgRenderer* getRenderer(const QString &filePath);
     QIcon drawNullIcon();
     QString getCacheDirectory();
     void loadIconAsync(const QString &filePath);

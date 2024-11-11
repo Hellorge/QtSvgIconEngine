@@ -7,6 +7,8 @@
 #include <QColor>
 #include <QPropertyAnimation>
 #include <QImage>
+#include <QStyle>
+#include <QStyleOptionButton>
 
 class SvgIcon : public QSvgWidget {
     Q_OBJECT
@@ -19,7 +21,10 @@ class SvgIcon : public QSvgWidget {
     Q_PROPERTY(qreal border_width READ borderWidth WRITE setBorderWidth)
 
 public:
-    SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent = nullptr);
+	enum WidgetType { Button, Label };
+	enum State { Normal, Disabled, Active, Selected };
+
+	SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent = nullptr);
     ~SvgIcon();
 
     QColor color() const;
@@ -43,8 +48,11 @@ public:
     qreal borderWidth() const;
     void setBorderWidth(const qreal borderWidth);
 
+    void setState(State state);
+    void setDevicePixelRatio(qreal dpr);
+    void setElementId(QString elementId);
+
     // void loadSvg(const QString &filePath);
-    const QIcon& toIcon();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -61,7 +69,13 @@ private:
     QColor m_borderColor;
     qreal m_borderWidth;
     bool default_colors;
+    QString m_elementId;
 
+    State m_state;
+    qreal m_devicePixelRatio;
+
+    void updateScaledSize();
+    void updateStateStyle();
     void updateCachedImage();
     void setOptions(const QVariantMap &options);
     const QVariantMap getOptions() const;

@@ -6,6 +6,7 @@ SvgIcon::SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent)
     : QSvgWidget(parent), m_renderer(renderer) {
     setOptions(options);
     updateCachedImage();
+    m_devicePixelRatio = 1.0;
 }
 
 SvgIcon::~SvgIcon() {
@@ -134,16 +135,78 @@ void SvgIcon::updateCachedImage() {
     }
 }
 
+void SvgIcon::setState(State state) {
+    if (m_state != state) {
+        m_state = state;
+        updateStateStyle();
+    }
+}
+
+void SvgIcon::updateStateStyle() {
+    switch (m_state) {
+        case Disabled:
+            setOpacity(0.5);
+            break;
+        case Active:
+            setColor(Qt::blue);
+            break;
+        case Selected:
+            setBackground(Qt::lightGray);
+            break;
+        default:
+            setOpacity(1.0);
+            setColor(m_color);
+            setBackground(Qt::transparent);
+    }
+    update();
+}
+
+void SvgIcon::setDevicePixelRatio(qreal dpr) {
+    if (m_devicePixelRatio != dpr) {
+        m_devicePixelRatio = dpr;
+        updateScaledSize();
+    }
+}
+
+void SvgIcon::updateScaledSize() {
+    QSize scaledSize = size() * m_devicePixelRatio;
+    m_cachedImage = QImage(scaledSize, QImage::Format_ARGB32_Premultiplied);
+    m_cachedImage.setDevicePixelRatio(m_devicePixelRatio);
+    updateCachedImage();
+    update();
+}
+
+void SvgIcon::setElementId(QString elementId) {
+	if (m_elementId != elementId) {
+		m_elementId = elementId;
+		update();
+	}
+}
+
 void SvgIcon::paintEvent(QPaintEvent *event) {
     if (m_cachedImage.isNull()) {
         return;
     }
 
     QPainter painter(this);
+
+    // QStyleOptionButton option;
+	// option.initFrom(this);
+	// option.state |= QStyle::State_Sunken;
+	// option.state |= QStyle::State_On;
+	// option.state |= QStyle::State_MouseOver;
+
+	// style()->drawControl(QStyle::CE_PushButton, &option, &painter, this);
+
     painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform, true);
+    painter.scale(1.0 / m_devicePixelRatio, 1.0 / m_devicePixelRatio);
 
     const QRect rect = m_cachedImage.rect();
     painter.fillRect(rect, m_background);
+
+    if (!m_elementId.isEmpty()) {
+        m_renderer->render(&painter, m_elementId);
+    }
 
     QImage coloredImage = m_cachedImage;
     if (m_color!= Qt::transparent) {

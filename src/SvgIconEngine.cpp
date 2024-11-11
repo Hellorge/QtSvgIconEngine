@@ -51,13 +51,17 @@ void SvgIconEngine::setDefaults(const QVariantMap &options) {
     }
 }
 
+const QString SvgIconEngine::getFilePath(const QString &style, const QString &iconName) {
+	return QString("%1/%2/%3.svg").arg(iconPath).arg(style).arg(iconName);
+}
+
 SvgIcon* SvgIconEngine::getIcon(const QString &style, const QString &iconName) {
     QVariantMap options;
     return getIcon(style, iconName, options);
 }
 
 SvgIcon* SvgIconEngine::getIcon(const QString &style, const QString &iconName, QVariantMap &options) {
-    QString filePath = QString("%1/%2/%3.svg").arg(iconPath).arg(style).arg(iconName);
+    QString filePath = getFilePath(style, iconName);
 
     QSvgRenderer *renderer = getRenderer(filePath);
 
@@ -69,6 +73,30 @@ SvgIcon* SvgIconEngine::getIcon(const QString &style, const QString &iconName, Q
     options = getOptions(renderer, options);
 
     return new SvgIcon(renderer, options);
+}
+
+SvgIcon* SvgIconEngine::getIconFromSprite(const QString &style, const QString &iconName, const QString &elementId) {
+    QVariantMap options;
+    return getIconFromSprite(style, iconName, elementId, options);
+}
+
+SvgIcon* SvgIconEngine::getIconFromSprite(const QString &style, const QString &iconName, const QString &elementId, QVariantMap &options) {
+	QString filePath = getFilePath(style, iconName);
+
+	QSvgRenderer *renderer = getRenderer(filePath);
+
+    if (!renderer || !renderer->isValid()) {
+        qCWarning(lcSvgIconEngine) << "Failed to get a valid QSvgRenderer for" << filePath;
+        // return drawNullIcon();
+    }
+
+    QRectF bounds = renderer->boundsOnElement(elementId);
+
+    options["viewBox"] = bounds;
+    SvgIcon *icon = new SvgIcon(renderer, options);
+    icon->setElementId(elementId);
+
+    return icon;
 }
 
 QVariantMap SvgIconEngine::getOptions(const QSvgRenderer *renderer, QVariantMap &options) {
