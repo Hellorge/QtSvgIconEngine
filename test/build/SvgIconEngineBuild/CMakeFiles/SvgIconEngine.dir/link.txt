@@ -1,2 +1,0 @@
-/usr/bin/ar qc libSvgIconEngine.a CMakeFiles/SvgIconEngine.dir/SvgIconEngine_autogen/mocs_compilation.cpp.o CMakeFiles/SvgIconEngine.dir/src/SvgIcon.cpp.o CMakeFiles/SvgIconEngine.dir/src/SvgIconEngine.cpp.o
-/usr/bin/ranlib libSvgIconEngine.a

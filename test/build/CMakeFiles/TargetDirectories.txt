@@ -1,8 +1,0 @@
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/CMakeFiles/SvgIconEngineTest.dir
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/CMakeFiles/edit_cache.dir
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/CMakeFiles/rebuild_cache.dir
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/SvgIconEngineBuild/CMakeFiles/SvgIconEngine.dir
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/SvgIconEngineBuild/CMakeFiles/edit_cache.dir
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/SvgIconEngineBuild/CMakeFiles/rebuild_cache.dir
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/SvgIconEngineBuild/CMakeFiles/SvgIconEngine_autogen_timestamp_deps.dir
-/run/media/hellorge/PIT/Desktop/projects/QtSvgIconEngine/test/build/SvgIconEngineBuild/CMakeFiles/SvgIconEngine_autogen.dir

@@ -51,6 +51,7 @@ public:
     void setState(State state);
     void setDevicePixelRatio(qreal dpr);
     void setElementId(QString elementId);
+    QSvgRenderer* renderer() const { return m_renderer; }
 
     // void loadSvg(const QString &filePath);
 
