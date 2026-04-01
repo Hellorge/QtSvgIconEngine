@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QColor>
 #include <QPropertyAnimation>
+#include <QParallelAnimationGroup>
 #include <QImage>
 #include <QStyle>
 #include <QStyleOptionButton>
@@ -21,10 +22,11 @@ class SvgIcon : public QSvgWidget {
     Q_PROPERTY(qreal border_width READ borderWidth WRITE setBorderWidth)
 
 public:
-	enum WidgetType { Button, Label };
-	enum State { Normal, Disabled, Active, Selected };
+    // WidgetType reserved for future use (e.g. label vs button rendering hints)
+    enum WidgetType { Button, Label };
+    enum State { Normal, Disabled, Active, Selected };
 
-	SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent = nullptr);
+    SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent = nullptr);
     ~SvgIcon();
 
     QColor color() const;
@@ -36,7 +38,7 @@ public:
     qreal opacity() const;
     void setOpacity(const qreal opacity);
 
-    // QSize size() const;
+    // size() is inherited from QWidget, setSize wraps setFixedSize
     void setSize(const QSize &size);
 
     qreal scale() const;
@@ -53,23 +55,29 @@ public:
     void setElementId(QString elementId);
     QSvgRenderer* renderer() const { return m_renderer; }
 
-    // void loadSvg(const QString &filePath);
+    // Animate any combination of properties to target values
+    // Animatable keys: "color", "background", "opacity", "scale",
+    //                  "border_color", "border_width", "size"
+    void animateTo(const QVariantMap &targetOptions, int durationMs = 300,
+                   QEasingCurve::Type easing = QEasingCurve::InOutQuad);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
 
 private:
+    // NOTE: m_renderer is NOT owned by SvgIcon — it is owned and managed by
+    // SvgIconEngine's cache. Do NOT delete it here.
     QSvgRenderer *m_renderer;
     QImage m_cachedImage;
-    QIcon m_icon;
 
     QColor m_color;
+    QColor m_originalColor; // preserved so setState can restore correctly
     QColor m_background;
     qreal m_opacity;
     qreal m_scale;
     QColor m_borderColor;
     qreal m_borderWidth;
-    bool default_colors;
+    bool m_defaultColors;
     QString m_elementId;
 
     State m_state;
