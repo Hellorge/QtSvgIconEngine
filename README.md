@@ -11,6 +11,10 @@ all three, and exposes the result both as a `QWidget` (animatable) and as a `QIc
 |:---:|:---:|:---:|
 | ![hover](docs/hover.gif) | ![press](docs/press.gif) | ![theme](docs/theme.gif) |
 
+![draw](docs/draw.gif)
+
+*`stroke_progress` writes the icon on, the way `stroke-dashoffset` does on the web.*
+
 The clips are recorded from synthesized mouse events on a real `SvgIconButton`, not by
 calling `setState()` — so they show the whole chain, cursor included. The same events drive
 `tests/tst_interaction.cpp`.
@@ -106,6 +110,46 @@ When a state has no explicit override, it is derived. These knobs tune the deriv
 | `disabled_opacity_factor` | `0.5` | opacity multiplier for `Disabled` |
 | `selected_wash_alpha` | `60` | alpha of the `QPalette::Highlight` wash behind `Selected` |
 
+## Stroke effects
+
+Beyond colour and geometry, the stroke itself is animatable.
+
+```cpp
+QVariantMap o;
+o["stroke_progress"] = 0.0;                 // 0 = undrawn, 1 = fully drawn
+SvgIcon *icon = icons.getIcon("regular/star", o);
+
+auto *a = new QPropertyAnimation(icon, "stroke_progress", icon);
+a->setDuration(800);
+a->setStartValue(0.0);
+a->setEndValue(1.0);
+a->start();                                 // the star writes itself on
+```
+
+`stroke_progress` is a `Q_PROPERTY`, so it animates like any other, participates in
+`animateTo()`, and takes per-state overrides — `hover_stroke_progress` completes the
+drawing when the pointer arrives.
+
+Marching ants come from the same primitive:
+
+```cpp
+o["dash_pattern"] = 36.0;                   // dash length, in SVG user units
+// then animate "dash_offset" from 0 to 2 * dash_pattern, looping
+```
+
+**How it works, and what that costs.** There is no SVG path parser here. `stroke-dasharray`
+and `stroke-dashoffset` inherit, so the library injects them once on the root `<svg>`
+element and lets Qt do the rest. An icon's path length — the dash that exactly hides it —
+is recovered by *bisecting on rendered coverage*: the smallest dash that draws nothing is
+the longest subpath. That measurement costs ~6 ms and is memoised per file.
+
+Each animated frame re-renders the SVG with a new offset: **~167 µs**, about 1% of a 60 fps
+budget for one icon. Fine for a handful; don't animate a hundred at once. Icons that use no
+stroke effect never pay any of this.
+
+**Limitation:** a *filled* icon has no stroke to draw. `solid/heart` reports a stroke length
+of 0 and ignores the effect (with a warning) rather than rendering blank.
+
 ## Widget or QIcon?
 
 ```cpp
@@ -138,8 +182,16 @@ QIcon    i = icons.iconFromSprite("sheets/toolbar.svg", "paste");
 
 ## Caching
 
-Parsing an SVG is the expensive part, so renderers are held in an LRU cache and shared
-between every icon that uses the same file.
+Parsing an SVG is by far the expensive part, so renderers are held in an LRU cache and
+shared between every icon that uses the same file. Measured on this machine:
+
+| | cost |
+|---|---|
+| construct a `QSvgRenderer` (parse the file) | **21.3 µs** |
+| fetch the cached one | **3 ns** |
+
+That is roughly a 7000× difference per lookup, which is why the cache exists rather than
+being ceremony. A toolbar rebuilt on every theme change would otherwise re-parse every icon.
 
 ```cpp
 icons.setCacheLimit(200);   // renderers to keep; 0 disables caching
@@ -162,7 +214,7 @@ Requires Qt 6 (`Widgets`, `SvgWidgets`) and CMake ≥ 3.16.
 ```sh
 cmake -S . -B build
 cmake --build build
-ctest --test-dir build      # 11 suites, incl. HiDPI re-runs
+ctest --test-dir build      # 12 suites, incl. HiDPI re-runs
 ./build/test/SvgIconEngineTest   # the showcase above
 ```
 

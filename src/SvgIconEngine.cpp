@@ -2,6 +2,8 @@
 
 #include "SvgIconEngine.h"
 #include "SvgQIconEngine.h"
+#include "SvgStroke.h"
+#include <QFile>
 #include <QDebug>
 #include <QPalette>
 #include <QApplication>
@@ -70,7 +72,69 @@ SvgIcon* SvgIconEngine::getIcon(const QString &path, QVariantMap &options) {
     options = buildOptions(renderer.data(), options);
     SvgIcon *icon = new SvgIcon(renderer, options);
     attachStateIcons(icon, baseDirOf(filePath), options);
+    attachStrokeSource(icon, filePath, options);
     return icon;
+}
+
+// Only icons that actually ask for a stroke effect pay for the source bytes and
+// the (expensive) length measurement.
+void SvgIconEngine::attachStrokeSource(SvgIcon *icon, const QString &resolvedPath,
+                                       const QVariantMap &options) {
+    static const char *kKeys[] = {
+        "stroke_progress", "hover_stroke_progress", "pressed_stroke_progress",
+        "selected_stroke_progress", "disabled_stroke_progress",
+        "dash_pattern", "stroke_effects"
+    };
+    bool wanted = false;
+    for (const char *k : kKeys)
+        if (options.contains(QString::fromLatin1(k))) { wanted = true; break; }
+    if (!wanted)
+        return;
+
+    const QByteArray svg = sourceFor(resolvedPath);
+    if (svg.isEmpty())
+        return;
+
+    const qreal len = strokeLengthForResolved(resolvedPath);
+    if (qFuzzyIsNull(len))
+        qCWarning(lcSvgIconEngine) << resolvedPath
+            << "has no stroke; stroke effects will be a no-op";
+
+    icon->setStrokeSource(svg, len);
+
+    if (options.contains(QStringLiteral("dash_pattern")))
+        icon->setDashPattern(options.value(QStringLiteral("dash_pattern")).toReal());
+    if (options.contains(QStringLiteral("dash_offset")))
+        icon->setDashOffset(options.value(QStringLiteral("dash_offset")).toReal());
+}
+
+QByteArray SvgIconEngine::sourceFor(const QString &resolvedPath) {
+    auto it = sourceCache.constFind(resolvedPath);
+    if (it != sourceCache.constEnd())
+        return *it;
+
+    QFile f(resolvedPath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        logError(QString("Failed to read SVG source: '%1'").arg(resolvedPath));
+        return {};
+    }
+    const QByteArray bytes = f.readAll();
+    sourceCache.insert(resolvedPath, bytes);
+    return bytes;
+}
+
+qreal SvgIconEngine::strokeLength(const QString &path) {
+    return strokeLengthForResolved(resolvePath(path));
+}
+
+qreal SvgIconEngine::strokeLengthForResolved(const QString &resolvedPath) {
+    auto it = strokeLengthCache.constFind(resolvedPath);
+    if (it != strokeLengthCache.constEnd())
+        return *it;
+
+    const qreal len = SvgStroke::measureStrokeLength(sourceFor(resolvedPath));
+    strokeLengthCache.insert(resolvedPath, len);
+    return len;
 }
 
 // Per-state artwork is requested by path ("hover_icon": "solid/heart"), or by a

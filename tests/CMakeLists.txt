@@ -16,6 +16,7 @@ set(TESTS
     tst_button_background   # the icon must not paint a window-brush card
     tst_hidpi               # widget rasterises at the screen's dpr
     tst_interaction         # synthesized mouse events actually reach the icon
+    tst_stroke              # stroke-dashoffset draw-on, marching ants
 )
 
 foreach(t ${TESTS})

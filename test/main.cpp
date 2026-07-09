@@ -23,6 +23,7 @@
 #include <QIcon>
 #include <QVariantMap>
 #include <QDebug>
+#include <QPropertyAnimation>
 #include <QStyle>
 #include <QTimer>
 
@@ -328,6 +329,56 @@ int main(int argc, char *argv[]) {
                             "solid/heart while the colour interpolates.",
                             content));
     }
+    // ── Stroke effects ────────────────────────────────────────────────────
+    {
+        auto *content = new QWidget;
+        auto *h = new QHBoxLayout(content);
+        h->setContentsMargins(0, 0, 0, 0);
+        h->setSpacing(em(content) * 2);
+
+        // Draw-on: animate stroke_progress from 0 to 1, looping.
+        for (const char *name : {"regular/star", "regular/heart", "regular/settings"}) {
+            QVariantMap o;
+            o["size"] = QSize(44, 44);
+            o["stroke_progress"] = 0.0;
+            SvgIcon *icon = engine.getIcon(name, o);
+            if (!icon) continue;
+            auto *a = new QPropertyAnimation(icon, "stroke_progress", icon);
+            a->setDuration(1600);
+            a->setStartValue(0.0);
+            a->setEndValue(1.0);
+            a->setEasingCurve(QEasingCurve::InOutCubic);
+            a->setLoopCount(-1);
+            a->start();
+            h->addWidget(tile(icon, "draw-on"));
+        }
+
+        // Marching ants: a constant dash, animated offset.
+        {
+            QVariantMap o;
+            o["size"] = QSize(44, 44);
+            o["dash_pattern"] = 36.0;
+            SvgIcon *icon = engine.getIcon("regular/cloud", o);
+            if (icon) {
+                auto *a = new QPropertyAnimation(icon, "dash_offset", icon);
+                a->setDuration(1400);
+                a->setStartValue(0.0);
+                a->setEndValue(72.0);          // one full dash+gap period
+                a->setLoopCount(-1);
+                a->start();
+                h->addWidget(tile(icon, "marching ants"));
+            }
+        }
+        h->addStretch();
+
+        col->addWidget(card("Stroke effects",
+                            "stroke_progress writes the icon on, the way stroke-dashoffset "
+                            "does on the web; dash_pattern plus an animated dash_offset gives "
+                            "marching ants. Both need stroked artwork — a filled icon has no "
+                            "stroke to draw.",
+                            content));
+    }
+
     // ── Resolution independence ───────────────────────────────────────────
     {
         auto *content = new QWidget;

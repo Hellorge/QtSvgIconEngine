@@ -32,6 +32,7 @@ gif() {
 echo "→ assembling gifs"
 gif hover 50
 gif press 50
+gif draw 50
 gif theme 25
 
 echo "→ showcase stills"

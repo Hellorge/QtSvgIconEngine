@@ -2,6 +2,7 @@
 
 #include "SvgIcon.h"
 #include "SvgIconPainter.h"
+#include "SvgStroke.h"
 #include <QApplication>
 #include <QEvent>
 
@@ -135,6 +136,12 @@ QVariantMap SvgIcon::resolveOptions(const QVariantMap &options, State state) {
     else
         t[QStringLiteral("border_width")] = baseBorderW;
 
+    if ((v = stateOverride(options, state, QStringLiteral("stroke_progress"))).isValid())
+        t[QStringLiteral("stroke_progress")] = v;
+    else
+        t[QStringLiteral("stroke_progress")] =
+            options.value(QStringLiteral("stroke_progress"), 1.0).toReal();
+
     return t;
 }
 
@@ -159,6 +166,8 @@ void SvgIcon::applyOptions(const QVariantMap &o) {
     m_scale       = o.value(QStringLiteral("scale")).toReal();
     m_borderColor = o.value(QStringLiteral("border_color")).value<QColor>();
     m_borderWidth = o.value(QStringLiteral("border_width")).toReal();
+    if (o.contains(QStringLiteral("stroke_progress")))
+        setStrokeProgress(o.value(QStringLiteral("stroke_progress")).toReal());
     update();
     emit visualChanged();
 }
@@ -222,6 +231,86 @@ QColor SvgIcon::borderColor() const { return m_borderColor; }
 void SvgIcon::setBorderColor(const QColor &borderColor) {
     if (m_borderColor != borderColor) {
         m_borderColor = borderColor;
+        update();
+        emit visualChanged();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Stroke effects
+// ---------------------------------------------------------------------------
+
+void SvgIcon::setStrokeSource(const QByteArray &svg, qreal strokeLength) {
+    m_strokeSource = svg;
+    m_strokeLength = strokeLength;
+    // The constructor may already have applied a stroke_progress option before
+    // the source arrived, in which case rebuilding is not enough — the cached
+    // bitmap still holds the un-effected artwork.
+    rebuildEffectRenderer();
+    updateCachedImage();
+    update();
+    emit visualChanged();
+}
+
+// An effect renderer only exists while an effect is actually doing something;
+// otherwise we render the shared, cached renderer and pay nothing.
+void SvgIcon::rebuildEffectRenderer() {
+    const bool drawing = m_strokeLength > 0.0 && m_strokeProgress < 1.0;
+    const bool dashing = m_strokeLength > 0.0 && m_dashPattern > 0.0;
+
+    if (m_strokeSource.isEmpty() || (!drawing && !dashing)) {
+        m_effectRenderer.reset();
+        return;
+    }
+
+    qreal dash, offset;
+    if (dashing) {
+        dash   = m_dashPattern;
+        offset = m_dashOffset;
+    } else {
+        // dasharray == the whole stroke, offset walks it back to zero
+        dash   = m_strokeLength;
+        offset = m_strokeLength * (1.0 - qBound(0.0, m_strokeProgress, 1.0));
+    }
+
+    m_effectRenderer.reset(new QSvgRenderer(
+        SvgStroke::injectDash(m_strokeSource, dash, offset)));
+    if (!m_effectRenderer->isValid())
+        m_effectRenderer.reset();
+}
+
+QSvgRenderer *SvgIcon::activeRenderer() const {
+    return m_effectRenderer ? m_effectRenderer.data() : m_renderer.data();
+}
+
+void SvgIcon::setStrokeProgress(qreal progress) {
+    progress = qBound(0.0, progress, 1.0);
+    if (qFuzzyCompare(m_strokeProgress, progress))
+        return;
+    m_strokeProgress = progress;
+    rebuildEffectRenderer();
+    updateCachedImage();
+    update();
+    emit visualChanged();
+}
+
+void SvgIcon::setDashPattern(qreal dash) {
+    if (qFuzzyCompare(m_dashPattern, dash))
+        return;
+    m_dashPattern = qMax(0.0, dash);
+    rebuildEffectRenderer();
+    updateCachedImage();
+    update();
+    emit visualChanged();
+}
+
+void SvgIcon::setDashOffset(qreal offset) {
+    if (qFuzzyCompare(m_dashOffset, offset))
+        return;
+    m_dashOffset = offset;
+    if (m_dashPattern > 0.0) {
+        rebuildEffectRenderer();
+        updateCachedImage();
         update();
         emit visualChanged();
     }
@@ -325,7 +414,7 @@ void SvgIcon::updateCachedImage() {
     // Cached uncoloured; tinting happens per-paint so animating colour does not
     // force a re-rasterise of the SVG on every frame. The raster resolution
     // follows the screen, so the icon stays crisp on HiDPI displays.
-    m_cachedImage = SvgIconPainter::rasterize(m_renderer.data(), size(),
+    m_cachedImage = SvgIconPainter::rasterize(activeRenderer(), size(),
                                               devicePixelRatioF(), m_elementId);
 }
 
@@ -344,7 +433,8 @@ void SvgIcon::animateTo(const QVariantMap &targetOptions, int durationMs,
 
     static const QList<QByteArray> animatableProps = {
         "color", "background", "opacity", "scale",
-        "border_color", "border_width", "size"
+        "border_color", "border_width", "size",
+        "stroke_progress", "dash_offset"
     };
 
     auto *group = new QParallelAnimationGroup(this);

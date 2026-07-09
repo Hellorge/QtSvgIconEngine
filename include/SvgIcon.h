@@ -24,6 +24,8 @@ class SvgIcon : public QSvgWidget {
     Q_PROPERTY(qreal scale READ scale WRITE setScale)
     Q_PROPERTY(QColor border_color READ borderColor WRITE setBorderColor)
     Q_PROPERTY(qreal border_width READ borderWidth WRITE setBorderWidth)
+    Q_PROPERTY(qreal stroke_progress READ strokeProgress WRITE setStrokeProgress)
+    Q_PROPERTY(qreal dash_offset READ dashOffset WRITE setDashOffset)
 
 public:
     // Interaction states. Each may override any visual option via a prefixed
@@ -63,6 +65,26 @@ public:
     qreal borderWidth() const;
     void setBorderWidth(const qreal borderWidth);
 
+    // 0 = undrawn, 1 = fully drawn. Animating this "writes" the icon on, the way
+    // stroke-dashoffset does on the web. Requires stroked artwork; a filled icon
+    // has no stroke to draw and ignores it.
+    qreal strokeProgress() const { return m_strokeProgress; }
+    void setStrokeProgress(qreal progress);
+
+    // Marching-ants offset, in user units. Animate it for a moving dash.
+    // Only meaningful when dashPattern() is set.
+    qreal dashOffset() const { return m_dashOffset; }
+    void setDashOffset(qreal offset);
+    void setDashPattern(qreal dash);          // 0 disables
+    qreal dashPattern() const { return m_dashPattern; }
+
+    // The length of the longest subpath, or 0 when the artwork has no stroke.
+    qreal strokeLength() const { return m_strokeLength; }
+
+    // Supplies the source needed by the stroke effects above. The engine calls
+    // this; there is no need to do so by hand.
+    void setStrokeSource(const QByteArray &svg, qreal strokeLength);
+
     // State changes animate over setTransitionDuration() milliseconds.
     // Set it to 0 for an instant switch.
     void setState(State state);
@@ -83,7 +105,8 @@ public:
     // Animate any combination of properties to target values. Any previously
     // running transition is stopped first.
     // Animatable keys: "color", "background", "opacity", "scale",
-    //                  "border_color", "border_width", "size"
+    //                  "border_color", "border_width", "size",
+    //                  "stroke_progress", "dash_offset"
     void animateTo(const QVariantMap &targetOptions, int durationMs = 300,
                    QEasingCurve::Type easing = QEasingCurve::InOutQuad);
 
@@ -113,6 +136,15 @@ private:
     QSharedPointer<QSvgRenderer> m_baseRenderer;  // the Normal-state artwork
     QHash<int, QSharedPointer<QSvgRenderer>> m_stateRenderers;
     QImage m_cachedImage;
+
+    // Stroke effects re-render the SVG source with injected dash attributes, so
+    // they need the bytes, not just a parsed renderer.
+    QByteArray m_strokeSource;
+    QSharedPointer<QSvgRenderer> m_effectRenderer;  // non-null while an effect is active
+    qreal m_strokeLength   = 0.0;
+    qreal m_strokeProgress = 1.0;
+    qreal m_dashPattern    = 0.0;
+    qreal m_dashOffset     = 0.0;
 
     // Full option map as resolved by the engine, including per-state keys.
     QVariantMap m_options;
@@ -144,6 +176,8 @@ private:
     QVariantMap currentOptions() const;  // live (possibly mid-animation) values
 
     void applyOptions(const QVariantMap &options); // instant, no animation
+    void rebuildEffectRenderer();
+    QSvgRenderer *activeRenderer() const;
     void updateCachedImage();
     void setOptions(const QVariantMap &options);
 };

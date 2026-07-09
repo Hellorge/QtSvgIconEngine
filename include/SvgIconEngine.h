@@ -56,6 +56,10 @@ public:
     // Exposed because per-state icons and callers both need the same rules.
     QString resolvePath(const QString &path, const QString &baseDir = QString()) const;
 
+    // Length of the longest subpath of an icon, or 0 if it has no stroke.
+    // Measured once and memoised; see SvgStroke::measureStrokeLength.
+    qreal strokeLength(const QString &path);
+
     void setDefaults(const QVariantMap &options);
     void clearCache();
 
@@ -76,6 +80,17 @@ private:
     QCache<QString, QSharedPointer<QSvgRenderer>> rendererCache;
     int cacheLimit = 100;
     QMutex cacheMutex;
+
+    // Stroke effects need the raw bytes and a measured path length. Both are
+    // memoised: measuring bisects over ~18 renders and is far too slow to redo.
+    QHash<QString, QByteArray> sourceCache;
+    QHash<QString, qreal> strokeLengthCache;
+    QByteArray sourceFor(const QString &resolvedPath);
+    // Takes an already-resolved path. The public strokeLength() resolves first;
+    // calling that from an internal site would resolve twice.
+    qreal strokeLengthForResolved(const QString &resolvedPath);
+    void attachStrokeSource(SvgIcon *icon, const QString &resolvedPath,
+                            const QVariantMap &options);
 
     QVariantMap buildOptions(const QSvgRenderer *renderer, QVariantMap &options);
     static QString baseDirOf(const QString &resolvedPath);

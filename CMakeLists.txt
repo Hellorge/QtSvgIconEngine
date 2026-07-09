@@ -24,6 +24,7 @@ set(SOURCES
     src/SvgIconButton.cpp
     src/SvgIconPainter.cpp
     src/SvgQIconEngine.cpp
+    src/SvgStroke.cpp
 )
 
 set(HEADERS
@@ -32,6 +33,7 @@ set(HEADERS
     include/SvgIconButton.h
     include/SvgIconPainter.h
     include/SvgQIconEngine.h
+    include/SvgStroke.h
 )
 
 # STATIC or SHARED follows BUILD_SHARED_LIBS.

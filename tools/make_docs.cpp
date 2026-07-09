@@ -14,6 +14,8 @@
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QEnterEvent>
+#include <QPropertyAnimation>
+#include <QTimer>
 #include <QtMath>
 #include <QDebug>
 
@@ -219,6 +221,40 @@ int main(int argc, char **argv) {
         glide(ptr, over, QPointF(280, 118), 12, &host, dir, n, pumpFrame);
         for (int i = 0; i < 14; ++i) { pumpFrame(); grab(&host, dir, n, &ptr); }
         qInfo() << "press frames:" << n << " end state:" << int(icon->state());
+    }
+
+    // ── draw-on: stroke-dashoffset writes the icon in ──────────────────────
+    {
+        const QString dir = out + "/draw"; QDir().mkpath(dir); int n = 0;
+        QWidget host; host.setAutoFillBackground(true); host.resize(430, 130);
+        auto *l = new QHBoxLayout(&host);
+        l->setSpacing(24);
+
+        QVector<SvgIcon *> icons;
+        for (const char *name : {"regular/star", "regular/heart", "regular/settings", "regular/cloud"}) {
+            QVariantMap o;
+            o["size"] = QSize(64, 64);
+            o["stroke_progress"] = 0.0;          // start undrawn
+            SvgIcon *icon = engine.getIcon(name, o);
+            l->addWidget(icon);
+            icons << icon;
+        }
+        host.show(); app.processEvents();
+
+        for (int i = 0; i < 8; ++i) { pumpFrame(); grab(&host, dir, n); }
+
+        // Stagger the strokes so they write on one after another.
+        for (int i = 0; i < icons.size(); ++i) {
+            auto *a = new QPropertyAnimation(icons[i], "stroke_progress", icons[i]);
+            a->setDuration(700);
+            a->setStartValue(0.0);
+            a->setEndValue(1.0);
+            a->setEasingCurve(QEasingCurve::InOutCubic);
+            QTimer::singleShot(i * 180, [a]{ a->start(); });
+        }
+        for (int i = 0; i < 70; ++i) { pumpFrame(); grab(&host, dir, n); }
+        for (int i = 0; i < 14; ++i) { pumpFrame(); grab(&host, dir, n); }
+        qInfo() << "draw frames:" << n;
     }
 
     // ── theme: icons with no explicit colour follow QPalette::Text ─────────
