@@ -27,17 +27,23 @@ set(SOURCES
     src/SvgStroke.cpp
 )
 
-set(HEADERS
+# Installed. These are what a consumer includes.
+set(PUBLIC_HEADERS
     include/SvgIcon.h
     include/SvgIconEngine.h
     include/SvgIconButton.h
-    include/SvgIconPainter.h
     include/SvgQIconEngine.h
+)
+
+# Build-tree only: implementation details the tests reach into, but which no
+# public header exposes and no consumer should depend on.
+set(INTERNAL_HEADERS
+    include/SvgIconPainter.h
     include/SvgStroke.h
 )
 
 # STATIC or SHARED follows BUILD_SHARED_LIBS.
-add_library(SvgIconEngine ${SOURCES} ${HEADERS})
+add_library(SvgIconEngine ${SOURCES} ${PUBLIC_HEADERS} ${INTERNAL_HEADERS})
 add_library(SvgIconEngine::SvgIconEngine ALIAS SvgIconEngine)
 
 target_link_libraries(SvgIconEngine PUBLIC Qt6::Widgets Qt6::SvgWidgets)
@@ -62,7 +68,7 @@ install(TARGETS SvgIconEngine
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-install(FILES ${HEADERS}
+install(FILES ${PUBLIC_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SvgIconEngine)
 
 install(EXPORT SvgIconEngineTargets

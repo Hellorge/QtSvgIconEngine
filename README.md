@@ -277,6 +277,56 @@ cmake --build build --target make_docs SvgIconEngineTest
 ./tools/make_docs.sh build     # needs ffmpeg
 ```
 
+## Roadmap
+
+Nothing below is implemented. Each note says how hard it actually looks, based on what the
+existing code and Qt's SVG renderer can already do — several were probed before being
+written down here.
+
+### Effects
+
+- **Cross-fade artwork swaps.** Today `hover_icon` cuts hard from outline to solid; you can
+  see the jump in `docs/hover.gif` while the colour interpolates smoothly around it.
+  Straightforward: rasterise both renderers and blend them by an animated `qreal`. No SVG
+  work at all, one extra `QImage` composite per frame. This is the highest value-to-effort
+  item on the list.
+- **Animated stroke width.** *Not* a repeat of the dash trick. `stroke-dasharray` inherits,
+  so injecting it on the root `<svg>` reaches every child — but these icons declare
+  `stroke-width` inside a per-element `style` attribute, and CSS beats an inherited
+  presentation attribute. Measured: a root `stroke-width="8"` changes nothing (1442 px
+  before and after), while rewriting the element's own style to `8px` thins the stroke as
+  expected (1442 → 444 px). So this needs per-element source rewriting, and costs one
+  re-render per frame like the dash effects do.
+- **Per-subpath stagger for draw-on.** A gear's subpaths currently draw *simultaneously*
+  (visible in `docs/draw.gif`), because SVG restarts the dash pattern at each subpath.
+  Drawing them one after another means splitting the document per subpath, or parsing the
+  path data for real.
+- **Gradient and multi-colour tinting.** Tinting is a single `CompositionMode_SourceIn` fill
+  today. Filling with a `QLinearGradient` instead of a flat colour is nearly free.
+- **Glow / drop shadow.** A blurred alpha pass in `SvgIconPainter::composite`, or a
+  `QGraphicsDropShadowEffect` on the widget.
+- **Path morphing between two icons.** Needs a genuine SVG path-data parser (beziers, arcs)
+  *and* matched node counts between source and target. By far the largest item, and the
+  library currently avoids a path parser on purpose — see how `strokeLength` is measured.
+
+### API
+
+- `fade_ms` to control the artwork cross-fade, alongside `transition_ms`.
+- `stroke_width` / `hover_stroke_width`, once per-element rewriting exists.
+- Note that none of the animated effects can reach `QIcon`: it is a pixmap factory, not a
+  live object. A `QIcon` can render *a* `stroke_progress`, but it cannot animate one.
+
+### Project
+
+- **Continuous integration.** Thirteen suites exist and nothing runs them on push. The two
+  worst bugs found so far — the `QIcon` engine drawing at 2× and clipping, and the widget
+  rasterising at 1× and blurring — were both **invisible at `devicePixelRatio` 1**. CI is
+  what keeps the `QT_SCALE_FACTOR=2` runs honest.
+- Rename `test/` (the demo) to `examples/`, so it stops colliding with `tests/`.
+- A CHANGELOG and a tag; the version already says 0.2.0.
+- Only exercised on Linux with Qt 6.11 and GCC. Windows and macOS are untried. Qt 5 is not
+  supported: `SvgQIconEngine` overrides virtuals that only exist in Qt 6.
+
 ## Notes
 
 The demo uses the beautiful open-source [ionicons](https://ionic.io/ionicons).
