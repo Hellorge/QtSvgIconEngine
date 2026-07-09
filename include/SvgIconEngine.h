@@ -7,13 +7,9 @@
 #include <QVariantMap>
 #include <QCache>
 #include <QMutex>
+#include <QSharedPointer>
+#include <QIcon>
 #include <QLoggingCategory>
-
-enum class CachePolicy {
-    LRU,  // up to 100 QSvgRenderer instances cached (default)
-    ALL,  // cache everything
-    NONE  // no caching
-};
 
 Q_DECLARE_LOGGING_CATEGORY(lcSvgIconEngine)
 
@@ -21,35 +17,73 @@ class SvgIconEngine : public QObject {
     Q_OBJECT
 
 public:
-    explicit SvgIconEngine(const QString &filePath,
+    // `root` is the icon bank's base directory — a filesystem path or a qrc
+    // prefix such as ":/icons". Every icon is addressed by a path relative to
+    // it, or by an absolute/qrc path that ignores it. See resolvePath().
+    explicit SvgIconEngine(const QString &root,
                            const QVariantMap &options = QVariantMap());
     ~SvgIconEngine();
 
-    // Get a full icon from an SVG file
-    SvgIcon* getIcon(const QString &style, const QString &iconName);
-    SvgIcon* getIcon(const QString &style, const QString &iconName, QVariantMap &options);
+    // Icons are addressed by path, the way an <img src> is:
+    //
+    //   "regular/heart"      -> <root>/regular/heart.svg   (root-relative)
+    //   ":/other/x.svg"      -> verbatim                   (qrc, outside the bank)
+    //   "/abs/path/x.svg"    -> verbatim                   (filesystem)
+    //
+    // A ".svg" suffix is optional. Inside a per-state option ("hover_icon"), a
+    // bare name with no slash resolves as a sibling of the base icon, so
+    // hover_icon="heart" means "the heart next to me" and hover_icon="solid/heart"
+    // reaches across the bank.
 
-    // Get a single element out of a sprite SVG
-    SvgIcon* getIconFromSprite(const QString &style, const QString &iconName,
-                               const QString &elementId);
-    SvgIcon* getIconFromSprite(const QString &style, const QString &iconName,
-                               const QString &elementId, QVariantMap &options);
+    // An animatable widget.
+    SvgIcon* getIcon(const QString &path);
+    SvgIcon* getIcon(const QString &path, QVariantMap &options);
+
+    // The same artwork as a QIcon, usable anywhere Qt takes one (QAction,
+    // QPushButton::setIcon, QToolBar, item views).
+    // QIcon cannot animate and has no pressed state — use getIcon() for those.
+    QIcon icon(const QString &path);
+    QIcon icon(const QString &path, QVariantMap &options);
+
+    // A single element out of a sprite SVG, as a widget or as a QIcon.
+    SvgIcon* getIconFromSprite(const QString &path, const QString &elementId);
+    SvgIcon* getIconFromSprite(const QString &path, const QString &elementId,
+                               QVariantMap &options);
+    QIcon iconFromSprite(const QString &path, const QString &elementId);
+    QIcon iconFromSprite(const QString &path, const QString &elementId,
+                         QVariantMap &options);
+
+    // Exposed because per-state icons and callers both need the same rules.
+    QString resolvePath(const QString &path, const QString &baseDir = QString()) const;
 
     void setDefaults(const QVariantMap &options);
     void clearCache();
-    void setCachePolicy(CachePolicy policy);
+
+    // Parsing an SVG is the expensive part, so renderers are kept in an LRU
+    // cache. `renderers` is the number held; 0 disables caching entirely.
+    // Default 100. (This replaces the old NONE/LRU/ALL policy enum — those were
+    // three names for one number.)
+    void setCacheLimit(int renderers);
 
 private:
     QString iconPath;
     QVariantMap defOptions;
-    QCache<QString, QSvgRenderer> rendererCache; // owns all QSvgRenderer pointers
-    CachePolicy cachePolicy;
+
+    // Renderers are reference-counted, not cache-owned. A QCache deletes evicted
+    // values, which would dangle any SvgIcon still holding the renderer. Sharing
+    // ownership means eviction only drops the cache's reference; the renderer
+    // dies when the last SvgIcon using it does.
+    QCache<QString, QSharedPointer<QSvgRenderer>> rendererCache;
+    int cacheLimit = 100;
     QMutex cacheMutex;
 
     QVariantMap buildOptions(const QSvgRenderer *renderer, QVariantMap &options);
-    const QString getFilePath(const QString &style, const QString &iconName);
-    QSvgRenderer* getRenderer(const QString &filePath);
-    QIcon drawNullIcon();
+    static QString baseDirOf(const QString &resolvedPath);
+    QSharedPointer<QSvgRenderer> getRenderer(const QString &filePath);
+    QHash<int, QSharedPointer<QSvgRenderer>> loadStateRenderers(const QString &baseDir,
+                                                                const QVariantMap &options);
+    void attachStateIcons(SvgIcon *icon, const QString &baseDir, const QVariantMap &options);
+    void initDefaults();
     void logError(const QString &message);
 };
 

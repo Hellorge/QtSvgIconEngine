@@ -1,6 +1,7 @@
 // This file is part of QtSvgIconEngine, under GNU LGPL license, for more info see LICENSE.
 
 #include "SvgIconEngine.h"
+#include "SvgQIconEngine.h"
 #include <QDebug>
 #include <QPalette>
 #include <QApplication>
@@ -8,38 +9,43 @@
 
 Q_LOGGING_CATEGORY(lcSvgIconEngine, "svgiconengine")
 
-SvgIconEngine::SvgIconEngine(const QString &filePath, const QVariantMap &options)
-    : iconPath(filePath), cachePolicy(CachePolicy::LRU) {
+SvgIconEngine::SvgIconEngine(const QString &root, const QVariantMap &options)
+    : iconPath(root) {
+    initDefaults();
     setDefaults(options);
-    setCachePolicy(cachePolicy);
+    rendererCache.setMaxCost(cacheLimit);
 }
 
 SvgIconEngine::~SvgIconEngine() {
-    // rendererCache (QCache) owns and deletes all QSvgRenderer pointers.
-    // SvgIcon instances must NOT delete renderers — see SvgIcon destructor.
+    // The cache holds QSharedPointer references. Clearing it drops those
+    // references; renderers still held by live SvgIcons stay alive.
 }
 
-void SvgIconEngine::setDefaults(const QVariantMap &options) {
-    defOptions.insert("color",          QApplication::palette().text().color());
+void SvgIconEngine::initDefaults() {
     defOptions.insert("background",     QColor(Qt::transparent));
     defOptions.insert("default_colors", false);
     defOptions.insert("opacity",        1.0);
-    defOptions.insert("border_color",   QApplication::palette().text().color());
     defOptions.insert("border_width",   0.0);
     defOptions.insert("scale",          1.0);
 
-    for (auto it = defOptions.constBegin(); it != defOptions.constEnd(); ++it) {
+    // "color" and "border_color" are deliberately absent: an icon with no
+    // explicit colour inherits QPalette::Text at paint time and keeps following
+    // the palette across theme changes. Baking the colour in here would freeze
+    // it at engine-construction time.
+    //
+    // "size" has no sensible universal default — falls back to renderer->defaultSize()
+}
+
+void SvgIconEngine::setDefaults(const QVariantMap &options) {
+    // Merge into the existing defaults rather than resetting them, so that
+    // successive calls accumulate instead of silently dropping earlier values.
+    for (auto it = options.constBegin(); it != options.constEnd(); ++it) {
         const QString &property = it.key();
-        if (options.contains(property) && options.value(property).isValid()) {
-            defOptions.insert(property, options.value(property));
-        } else if (options.contains(property)) {
+        if (it.value().isValid()) {
+            defOptions.insert(property, it.value());
+        } else {
             qCWarning(lcSvgIconEngine) << "SvgIconEngine: invalid value for option" << property;
         }
-    }
-
-    // size has no sensible universal default — falls back to renderer->defaultSize()
-    if (options.contains("size") && options.value("size").isValid()) {
-        defOptions.insert("size", options.value("size"));
     }
 }
 
@@ -47,85 +53,211 @@ void SvgIconEngine::setDefaults(const QVariantMap &options) {
 // Public API
 // ---------------------------------------------------------------------------
 
-SvgIcon* SvgIconEngine::getIcon(const QString &style, const QString &iconName) {
+SvgIcon* SvgIconEngine::getIcon(const QString &path) {
     QVariantMap options;
-    return getIcon(style, iconName, options);
+    return getIcon(path, options);
 }
 
-SvgIcon* SvgIconEngine::getIcon(const QString &style, const QString &iconName,
-                                QVariantMap &options) {
-    const QString filePath = getFilePath(style, iconName);
-    QSvgRenderer *renderer = getRenderer(filePath);
+SvgIcon* SvgIconEngine::getIcon(const QString &path, QVariantMap &options) {
+    const QString filePath = resolvePath(path);
+    QSharedPointer<QSvgRenderer> renderer = getRenderer(filePath);
 
     if (!renderer) {
         qCWarning(lcSvgIconEngine) << "Failed to get renderer for" << filePath;
         return nullptr;
     }
 
-    options = buildOptions(renderer, options);
-    return new SvgIcon(renderer, options);
-}
-
-SvgIcon* SvgIconEngine::getIconFromSprite(const QString &style, const QString &iconName,
-                                          const QString &elementId) {
-    QVariantMap options;
-    return getIconFromSprite(style, iconName, elementId, options);
-}
-
-SvgIcon* SvgIconEngine::getIconFromSprite(const QString &style, const QString &iconName,
-                                          const QString &elementId, QVariantMap &options) {
-    const QString filePath = getFilePath(style, iconName);
-    QSvgRenderer *renderer = getRenderer(filePath);
-
-    if (!renderer) {
-        qCWarning(lcSvgIconEngine) << "Failed to get renderer for" << filePath;
-        return nullptr;
-    }
-
-    options["viewBox"] = renderer->boundsOnElement(elementId);
-    options = buildOptions(renderer, options);
-
+    options = buildOptions(renderer.data(), options);
     SvgIcon *icon = new SvgIcon(renderer, options);
-    icon->setElementId(elementId);
+    attachStateIcons(icon, baseDirOf(filePath), options);
     return icon;
 }
 
+// Per-state artwork is requested by path ("hover_icon": "solid/heart"), or by a
+// bare name resolved as a sibling of the base icon. A missing file warns and
+// leaves the state showing the base artwork rather than failing the whole icon.
+QHash<int, QSharedPointer<QSvgRenderer>>
+SvgIconEngine::loadStateRenderers(const QString &baseDir, const QVariantMap &options) {
+    static const struct { const char *key; SvgIcon::State state; } kStateIcons[] = {
+        { "hover_icon",    SvgIcon::Hovered  },
+        { "pressed_icon",  SvgIcon::Pressed  },
+        { "selected_icon", SvgIcon::Selected },
+        { "disabled_icon", SvgIcon::Disabled },
+    };
+
+    QHash<int, QSharedPointer<QSvgRenderer>> out;
+    for (const auto &entry : kStateIcons) {
+        const QString path = options.value(QString::fromLatin1(entry.key)).toString();
+        if (path.isEmpty())
+            continue;
+
+        QSharedPointer<QSvgRenderer> r = getRenderer(resolvePath(path, baseDir));
+        if (!r) {
+            qCWarning(lcSvgIconEngine) << "State icon" << entry.key << "->" << path
+                                       << "could not be loaded; using base artwork";
+            continue;
+        }
+        out.insert(entry.state, r);
+    }
+    return out;
+}
+
+void SvgIconEngine::attachStateIcons(SvgIcon *icon, const QString &baseDir,
+                                     const QVariantMap &options) {
+    const auto renderers = loadStateRenderers(baseDir, options);
+    for (auto it = renderers.constBegin(); it != renderers.constEnd(); ++it)
+        icon->setStateRenderer(static_cast<SvgIcon::State>(it.key()), it.value());
+}
+
+// ---------------------------------------------------------------------------
+// QIcon production
+// ---------------------------------------------------------------------------
+
+QIcon SvgIconEngine::icon(const QString &path) {
+    QVariantMap options;
+    return icon(path, options);
+}
+
+QIcon SvgIconEngine::icon(const QString &path, QVariantMap &options) {
+    const QString filePath = resolvePath(path);
+    QSharedPointer<QSvgRenderer> renderer = getRenderer(filePath);
+
+    if (!renderer) {
+        qCWarning(lcSvgIconEngine) << "Failed to get renderer for" << filePath;
+        return QIcon();
+    }
+
+    options = buildOptions(renderer.data(), options);
+    return QIcon(new SvgQIconEngine(renderer, loadStateRenderers(baseDirOf(filePath), options),
+                                    options, filePath, QString()));
+}
+
+// ---------------------------------------------------------------------------
+// Sprites
+// ---------------------------------------------------------------------------
+
+SvgIcon* SvgIconEngine::getIconFromSprite(const QString &path, const QString &elementId) {
+    QVariantMap options;
+    return getIconFromSprite(path, elementId, options);
+}
+
+SvgIcon* SvgIconEngine::getIconFromSprite(const QString &path, const QString &elementId,
+                                          QVariantMap &options) {
+    const QString filePath = resolvePath(path);
+    QSharedPointer<QSvgRenderer> renderer = getRenderer(filePath);
+
+    if (!renderer) {
+        qCWarning(lcSvgIconEngine) << "Failed to get renderer for" << filePath;
+        return nullptr;
+    }
+    if (!renderer->elementExists(elementId)) {
+        qCWarning(lcSvgIconEngine) << "No element" << elementId << "in sprite" << filePath;
+        return nullptr;
+    }
+
+    options = buildOptions(renderer.data(), options);
+
+    SvgIcon *icon = new SvgIcon(renderer, options);
+    icon->setElementId(elementId);
+    attachStateIcons(icon, baseDirOf(filePath), options);
+    return icon;
+}
+
+QIcon SvgIconEngine::iconFromSprite(const QString &path, const QString &elementId) {
+    QVariantMap options;
+    return iconFromSprite(path, elementId, options);
+}
+
+QIcon SvgIconEngine::iconFromSprite(const QString &path, const QString &elementId,
+                                    QVariantMap &options) {
+    const QString filePath = resolvePath(path);
+    QSharedPointer<QSvgRenderer> renderer = getRenderer(filePath);
+
+    if (!renderer) {
+        qCWarning(lcSvgIconEngine) << "Failed to get renderer for" << filePath;
+        return QIcon();
+    }
+    if (!renderer->elementExists(elementId)) {
+        qCWarning(lcSvgIconEngine) << "No element" << elementId << "in sprite" << filePath;
+        return QIcon();
+    }
+
+    options = buildOptions(renderer.data(), options);
+    return QIcon(new SvgQIconEngine(renderer, loadStateRenderers(baseDirOf(filePath), options),
+                                    options, filePath, elementId));
+}
+
 void SvgIconEngine::clearCache() {
+    QMutexLocker locker(&cacheMutex);
     rendererCache.clear();
 }
 
-void SvgIconEngine::setCachePolicy(CachePolicy policy) {
-    cachePolicy = policy;
-    rendererCache.setMaxCost(policy == CachePolicy::ALL ? INT_MAX : 100);
+void SvgIconEngine::setCacheLimit(int renderers) {
+    QMutexLocker locker(&cacheMutex);
+    cacheLimit = qMax(0, renderers);
+    if (cacheLimit == 0)
+        rendererCache.clear();
+    else
+        rendererCache.setMaxCost(cacheLimit);
 }
 
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
 
-const QString SvgIconEngine::getFilePath(const QString &style, const QString &iconName) {
-    return QString("%1/%2/%3.svg").arg(iconPath, style, iconName);
+// Addressing works like an <img src>:
+//   ":/x.svg" or "/x.svg" -> verbatim (qrc / filesystem, outside the bank)
+//   "regular/heart"       -> <root>/regular/heart.svg
+//   "heart" with baseDir  -> <baseDir>/heart.svg   (sibling of the base icon)
+// The ".svg" suffix is optional everywhere.
+QString SvgIconEngine::resolvePath(const QString &path, const QString &baseDir) const {
+    if (path.isEmpty())
+        return path;
+
+    QString p = path;
+    if (!p.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive))
+        p += QLatin1String(".svg");
+
+    // Absolute or qrc: ignore the bank entirely.
+    if (p.startsWith(QLatin1Char(':')) || p.startsWith(QLatin1Char('/')))
+        return p;
+
+    // A bare name inside a per-state option means "next to the base icon".
+    if (!baseDir.isEmpty() && !p.contains(QLatin1Char('/')))
+        return baseDir + QLatin1Char('/') + p;
+
+    return iconPath + QLatin1Char('/') + p;
 }
 
-QSvgRenderer* SvgIconEngine::getRenderer(const QString &filePath) {
-    if (cachePolicy != CachePolicy::NONE) {
-        QSvgRenderer *cached = rendererCache.object(filePath);
-        if (cached && cached->isValid())
-            return cached;
+QString SvgIconEngine::baseDirOf(const QString &resolvedPath) {
+    const int slash = resolvedPath.lastIndexOf(QLatin1Char('/'));
+    return slash > 0 ? resolvedPath.left(slash) : QString();
+}
+
+QSharedPointer<QSvgRenderer> SvgIconEngine::getRenderer(const QString &filePath) {
+    QMutexLocker locker(&cacheMutex);
+
+    if (cacheLimit > 0) {
+        if (QSharedPointer<QSvgRenderer> *cached = rendererCache.object(filePath)) {
+            if (*cached && (*cached)->isValid())
+                return *cached;
+        }
     }
 
-    QSvgRenderer *renderer = new QSvgRenderer(filePath);
+    QSharedPointer<QSvgRenderer> renderer(new QSvgRenderer(filePath));
     if (!renderer->isValid()) {
         logError(QString("Failed to load SVG: '%1'").arg(filePath));
-        delete renderer;
-        return nullptr;
+        return {};
     }
 
-    if (cachePolicy != CachePolicy::NONE) {
-        // QCache takes ownership — do not delete renderer after this point.
-        // SvgIcon instances receive this pointer but must NOT delete it.
-        rendererCache.insert(filePath, renderer);
+    if (cacheLimit > 0) {
+        // The cache owns a *reference*, not the renderer. Eviction deletes this
+        // QSharedPointer holder and drops one reference; any SvgIcon still using
+        // the renderer keeps it alive.
+        rendererCache.insert(filePath, new QSharedPointer<QSvgRenderer>(renderer));
     }
+    // With caching off the renderer is owned solely by the returned
+    // QSharedPointer, so it is freed with the last SvgIcon rather than leaked.
 
     return renderer;
 }
@@ -149,21 +281,6 @@ QVariantMap SvgIconEngine::buildOptions(const QSvgRenderer *renderer, QVariantMa
     }
 
     return options;
-}
-
-QIcon SvgIconEngine::drawNullIcon() {
-    QPixmap pixmap(100, 100);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    QPen pen(defOptions.value("color").value<QColor>(), 8);
-    painter.setPen(pen);
-    painter.drawRect(1, 1, 98, 98);
-    painter.drawLine(0, 0, 99, 99);
-    painter.drawLine(0, 99, 99, 0);
-    painter.end();
-
-    return QIcon(pixmap);
 }
 
 void SvgIconEngine::logError(const QString &message) {

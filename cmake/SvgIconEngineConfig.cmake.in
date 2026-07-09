@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# SvgIconEngine's public headers include QSvgWidget and QPushButton, and the
+# target links both publicly, so consumers need them resolved too.
+find_dependency(Qt6 REQUIRED COMPONENTS Widgets SvgWidgets)
+
+include("${CMAKE_CURRENT_LIST_DIR}/SvgIconEngineTargets.cmake")
+
+check_required_components(SvgIconEngine)

@@ -1,42 +1,166 @@
 // This file is part of QtSvgIconEngine, under GNU LGPL license, for more info see LICENSE.
 
 #include "SvgIcon.h"
+#include "SvgIconPainter.h"
+#include <QApplication>
+#include <QEvent>
 
-SvgIcon::SvgIcon(QSvgRenderer *renderer, QVariantMap &options, QWidget *parent)
-    : QSvgWidget(parent), m_renderer(renderer) {
+SvgIcon::SvgIcon(const QSharedPointer<QSvgRenderer> &renderer, QVariantMap &options,
+                 QWidget *parent)
+    : QSvgWidget(parent), m_renderer(renderer), m_baseRenderer(renderer) {
     setOptions(options);
     updateCachedImage();
-    m_devicePixelRatio = 1.0;
 }
 
 SvgIcon::~SvgIcon() {
-    // m_renderer is owned by SvgIconEngine's cache — do NOT delete here.
+    // m_renderer is a QSharedPointer — the renderer is released here only if
+    // this was the last reference (the engine's cache may still hold one).
+}
+
+// ---------------------------------------------------------------------------
+// Option resolution
+// ---------------------------------------------------------------------------
+
+const char* SvgIcon::statePrefix(State state) {
+    switch (state) {
+        case Hovered:  return "hover_";
+        case Pressed:  return "pressed_";
+        case Selected: return "selected_";
+        case Disabled: return "disabled_";
+        case Normal:
+        default:       return "";
+    }
+}
+
+// An explicitly supplied per-state override, or an invalid QVariant if absent.
+QVariant SvgIcon::stateOverride(const QVariantMap &options, State state, const QString &key) {
+    if (state == Normal)
+        return QVariant();
+    const QVariant v = options.value(QString::fromLatin1(statePrefix(state)) + key);
+    return v.isValid() ? v : QVariant();
+}
+
+// An absent colour key means "follow the palette".
+QColor SvgIcon::inheritedColor(const QVariantMap &options, const QString &key) {
+    const QVariant v = options.value(key);
+    if (v.isValid())
+        return v.value<QColor>();
+    return QApplication::palette().text().color();
 }
 
 void SvgIcon::setOptions(const QVariantMap &options) {
-    m_color         = options.value("color").value<QColor>();
-    m_originalColor = m_color; // preserve for setState restore
-    m_background    = options.value("background").value<QColor>();
-    m_opacity       = options.value("opacity").toReal();
-    m_scale         = options.value("scale").toReal();
-    m_borderColor   = options.value("border_color").value<QColor>();
-    m_borderWidth   = options.value("border_width").toReal();
-    m_defaultColors = options.value("default_colors").toBool();
-    m_state         = Normal;
-    setFixedSize(options.value("size").toSize());
+    m_options = options;
+
+    // Absent colour keys mean "follow the palette" — remember that so a theme
+    // change can re-resolve them.
+    m_colorInherited       = !options.value(QStringLiteral("color")).isValid();
+    m_borderColorInherited = !options.value(QStringLiteral("border_color")).isValid();
+
+    m_defaultColors = options.value(QStringLiteral("default_colors")).toBool();
+
+    if (options.contains(QStringLiteral("transition_ms")))
+        m_transitionMs = options.value(QStringLiteral("transition_ms")).toInt();
+
+    setFixedSize(options.value(QStringLiteral("size")).toSize());
+
+    m_state = Normal;
+    applyOptions(optionsForState(Normal));
 }
 
-const QVariantMap SvgIcon::getOptions() const {
-    QVariantMap map;
-    map.insert("color",        color());
-    map.insert("background",   background());
-    map.insert("opacity",      opacity());
-    map.insert("scale",        scale());
-    map.insert("border_color", borderColor());
-    map.insert("border_width", borderWidth());
-    map.insert("default_colors", m_defaultColors);
-    map.insert("size",         size());
-    return map;
+QVariantMap SvgIcon::optionsForState(State state) const {
+    return resolveOptions(m_options, state);
+}
+
+QVariantMap SvgIcon::resolveOptions(const QVariantMap &options, State state) {
+    QVariantMap t;
+    const QColor base       = inheritedColor(options, QStringLiteral("color"));
+    const QColor baseBorder = inheritedColor(options, QStringLiteral("border_color"));
+    const qreal  baseOpacity = options.value(QStringLiteral("opacity"), 1.0).toReal();
+    const qreal  baseScale   = options.value(QStringLiteral("scale"), 1.0).toReal();
+    const qreal  baseBorderW = options.value(QStringLiteral("border_width"), 0.0).toReal();
+    const QColor baseBg      = options.value(QStringLiteral("background"),
+                                             QColor(Qt::transparent)).value<QColor>();
+
+    t[QStringLiteral("default_colors")] = options.value(QStringLiteral("default_colors")).toBool();
+
+    // How each state derives from Normal when it has no explicit override.
+    // These are relative factors, not fixed colours, so a theme change or a new
+    // base colour carries through automatically.
+    const int   hoverLighten   = options.value(QStringLiteral("hover_lighten"),   130).toInt();
+    const int   pressedDarken  = options.value(QStringLiteral("pressed_darken"),  115).toInt();
+    const qreal disabledFactor = options.value(QStringLiteral("disabled_opacity_factor"), 0.5).toReal();
+    const int   selectedWash   = options.value(QStringLiteral("selected_wash_alpha"), 60).toInt();
+
+    // colour — explicit override wins, else a sensible per-state derivation
+    QVariant v;
+    if ((v = stateOverride(options, state, QStringLiteral("color"))).isValid()) {
+        t[QStringLiteral("color")] = v;
+    } else {
+        switch (state) {
+            case Hovered: t[QStringLiteral("color")] = base.lighter(hoverLighten); break;
+            case Pressed: t[QStringLiteral("color")] = base.darker(pressedDarken); break;
+            default:      t[QStringLiteral("color")] = base;                       break;
+        }
+    }
+
+    // background — Selected gets a translucent highlight wash by default
+    if ((v = stateOverride(options, state, QStringLiteral("background"))).isValid()) {
+        t[QStringLiteral("background")] = v;
+    } else if (state == Selected) {
+        QColor hl = QApplication::palette().highlight().color();
+        hl.setAlpha(selectedWash);
+        t[QStringLiteral("background")] = hl;
+    } else {
+        t[QStringLiteral("background")] = baseBg;
+    }
+
+    // opacity — Disabled dims by default
+    if ((v = stateOverride(options, state, QStringLiteral("opacity"))).isValid())
+        t[QStringLiteral("opacity")] = v;
+    else
+        t[QStringLiteral("opacity")] = (state == Disabled) ? baseOpacity * disabledFactor : baseOpacity;
+
+    if ((v = stateOverride(options, state, QStringLiteral("scale"))).isValid())
+        t[QStringLiteral("scale")] = v;
+    else
+        t[QStringLiteral("scale")] = baseScale;
+
+    if ((v = stateOverride(options, state, QStringLiteral("border_color"))).isValid())
+        t[QStringLiteral("border_color")] = v;
+    else
+        t[QStringLiteral("border_color")] = baseBorder;
+
+    if ((v = stateOverride(options, state, QStringLiteral("border_width"))).isValid())
+        t[QStringLiteral("border_width")] = v;
+    else
+        t[QStringLiteral("border_width")] = baseBorderW;
+
+    return t;
+}
+
+// Live values, which may be part-way through a transition — this is what the
+// widget actually paints, as opposed to the target of the current animation.
+QVariantMap SvgIcon::currentOptions() const {
+    QVariantMap o;
+    o[QStringLiteral("color")]          = m_color;
+    o[QStringLiteral("background")]     = m_background;
+    o[QStringLiteral("opacity")]        = m_opacity;
+    o[QStringLiteral("scale")]          = m_scale;
+    o[QStringLiteral("border_color")]   = m_borderColor;
+    o[QStringLiteral("border_width")]   = m_borderWidth;
+    o[QStringLiteral("default_colors")] = m_defaultColors;
+    return o;
+}
+
+void SvgIcon::applyOptions(const QVariantMap &o) {
+    m_color       = o.value(QStringLiteral("color")).value<QColor>();
+    m_background  = o.value(QStringLiteral("background")).value<QColor>();
+    m_opacity     = o.value(QStringLiteral("opacity")).toReal();
+    m_scale       = o.value(QStringLiteral("scale")).toReal();
+    m_borderColor = o.value(QStringLiteral("border_color")).value<QColor>();
+    m_borderWidth = o.value(QStringLiteral("border_width")).toReal();
+    update();
+    emit visualChanged();
 }
 
 // ---------------------------------------------------------------------------
@@ -49,6 +173,7 @@ void SvgIcon::setColor(const QColor &color) {
     if (m_color != color) {
         m_color = color;
         update();
+        emit visualChanged();
     }
 }
 
@@ -58,6 +183,7 @@ void SvgIcon::setBackground(const QColor &background) {
     if (m_background != background) {
         m_background = background;
         update();
+        emit visualChanged();
     }
 }
 
@@ -67,6 +193,7 @@ void SvgIcon::setOpacity(const qreal opacity) {
     if (m_opacity != opacity) {
         m_opacity = opacity;
         update();
+        emit visualChanged();
     }
 }
 
@@ -75,6 +202,8 @@ void SvgIcon::setSize(const QSize &size) {
         setFixedSize(size);
         updateCachedImage();
         update();
+        emit visualChanged();
+        emit sizeChanged(size);   // hosts must re-run layout, not just repaint
     }
 }
 
@@ -84,6 +213,7 @@ void SvgIcon::setScale(const qreal scale) {
     if (m_scale != scale) {
         m_scale = scale;
         update();
+        emit visualChanged();
     }
 }
 
@@ -93,6 +223,7 @@ void SvgIcon::setBorderColor(const QColor &borderColor) {
     if (m_borderColor != borderColor) {
         m_borderColor = borderColor;
         update();
+        emit visualChanged();
     }
 }
 
@@ -102,6 +233,7 @@ void SvgIcon::setBorderWidth(const qreal borderWidth) {
     if (m_borderWidth != borderWidth) {
         m_borderWidth = borderWidth;
         update();
+        emit visualChanged();
     }
 }
 
@@ -109,52 +241,67 @@ void SvgIcon::setBorderWidth(const qreal borderWidth) {
 // State
 // ---------------------------------------------------------------------------
 
+void SvgIcon::setStateRenderer(State state, const QSharedPointer<QSvgRenderer> &renderer) {
+    if (renderer)
+        m_stateRenderers.insert(state, renderer);
+    else
+        m_stateRenderers.remove(state);
+
+    if (state == m_state) {
+        m_renderer = renderer ? renderer : m_baseRenderer;
+        updateCachedImage();
+        update();
+        emit visualChanged();
+    }
+}
+
 void SvgIcon::setState(State state) {
-    if (m_state != state) {
-        m_state = state;
-        updateStateStyle();
-    }
-}
+    if (m_state == state)
+        return;
+    m_state = state;
 
-void SvgIcon::updateStateStyle() {
-    switch (m_state) {
-        case Disabled:
-            setOpacity(0.5);
-            break;
-        case Active:
-            // Use a tinted version of the original color rather than hardcoded blue
-            setColor(m_originalColor.lighter(150));
-            break;
-        case Selected:
-            setBackground(Qt::lightGray);
-            break;
-        case Normal:
-        default:
-            setOpacity(1.0);
-            setColor(m_originalColor); // restore original, not m_color which may be mutated
-            setBackground(Qt::transparent);
-            break;
+    // Swap artwork if this state has its own. Geometry is unchanged, so only
+    // the cached bitmap needs rebuilding.
+    const QSharedPointer<QSvgRenderer> wanted =
+        m_stateRenderers.value(state, m_baseRenderer);
+    if (wanted != m_renderer) {
+        m_renderer = wanted;
+        updateCachedImage();
     }
-    update();
+
+    const QVariantMap target = optionsForState(state);
+    if (m_transitionMs <= 0)
+        applyOptions(target);          // instant, matches pre-animation behaviour
+    else
+        animateTo(target, m_transitionMs, m_easing);
 }
 
 // ---------------------------------------------------------------------------
-// Device pixel ratio
+// Palette
 // ---------------------------------------------------------------------------
 
-void SvgIcon::setDevicePixelRatio(qreal dpr) {
-    if (m_devicePixelRatio != dpr) {
-        m_devicePixelRatio = dpr;
-        updateScaledSize();
+void SvgIcon::changeEvent(QEvent *event) {
+    const QEvent::Type t = event->type();
+    if (t == QEvent::PaletteChange || t == QEvent::ApplicationPaletteChange) {
+        // Only icons that never had an explicit colour follow the theme.
+        if (m_colorInherited || m_borderColorInherited)
+            applyOptions(optionsForState(m_state));
     }
+    QSvgWidget::changeEvent(event);
 }
 
-void SvgIcon::updateScaledSize() {
-    QSize scaledSize = size() * m_devicePixelRatio;
-    m_cachedImage = QImage(scaledSize, QImage::Format_ARGB32_Premultiplied);
-    m_cachedImage.setDevicePixelRatio(m_devicePixelRatio);
-    updateCachedImage();
-    update();
+// ---------------------------------------------------------------------------
+// Device pixel ratio — taken from the screen, never set by hand
+// ---------------------------------------------------------------------------
+
+bool SvgIcon::event(QEvent *e) {
+    // Moving to a screen with a different scale factor must re-rasterise, or a
+    // 1x bitmap gets stretched across 2x pixels and the icon looks soft.
+    if (e->type() == QEvent::DevicePixelRatioChange) {
+        updateCachedImage();
+        update();
+    }
+    return QSvgWidget::event(e);
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +311,9 @@ void SvgIcon::updateScaledSize() {
 void SvgIcon::setElementId(QString elementId) {
     if (m_elementId != elementId) {
         m_elementId = elementId;
+        updateCachedImage();
         update();
+        emit visualChanged();
     }
 }
 
@@ -173,17 +322,11 @@ void SvgIcon::setElementId(QString elementId) {
 // ---------------------------------------------------------------------------
 
 void SvgIcon::updateCachedImage() {
-    if (!m_renderer || !m_renderer->isValid())
-        return;
-
-    m_cachedImage = QImage(size() * m_devicePixelRatio, QImage::Format_ARGB32_Premultiplied);
-    m_cachedImage.setDevicePixelRatio(m_devicePixelRatio);
-    m_cachedImage.fill(Qt::transparent);
-
-    QPainter imagePainter(&m_cachedImage);
-    imagePainter.setRenderHint(QPainter::Antialiasing);
-    imagePainter.setRenderHint(QPainter::SmoothPixmapTransform);
-    m_renderer->render(&imagePainter);
+    // Cached uncoloured; tinting happens per-paint so animating colour does not
+    // force a re-rasterise of the SVG on every frame. The raster resolution
+    // follows the screen, so the icon stays crisp on HiDPI displays.
+    m_cachedImage = SvgIconPainter::rasterize(m_renderer.data(), size(),
+                                              devicePixelRatioF(), m_elementId);
 }
 
 // ---------------------------------------------------------------------------
@@ -192,13 +335,19 @@ void SvgIcon::updateCachedImage() {
 
 void SvgIcon::animateTo(const QVariantMap &targetOptions, int durationMs,
                         QEasingCurve::Type easing) {
-    // Map option keys to their Q_PROPERTY names (they match, but be explicit)
+    // A rapid hover in/out would otherwise stack animation groups that keep
+    // fighting over the same properties.
+    if (m_transition) {
+        m_transition->stop();
+        m_transition->deleteLater();
+    }
+
     static const QList<QByteArray> animatableProps = {
         "color", "background", "opacity", "scale",
         "border_color", "border_width", "size"
     };
 
-    QParallelAnimationGroup *group = new QParallelAnimationGroup(this);
+    auto *group = new QParallelAnimationGroup(this);
 
     for (const QByteArray &prop : animatableProps) {
         if (!targetOptions.contains(prop))
@@ -208,13 +357,14 @@ void SvgIcon::animateTo(const QVariantMap &targetOptions, int durationMs,
         if (!target.isValid())
             continue;
 
-        QPropertyAnimation *anim = new QPropertyAnimation(this, prop, group);
+        auto *anim = new QPropertyAnimation(this, prop, group);
         anim->setDuration(durationMs);
         anim->setEndValue(target);
         anim->setEasingCurve(easing);
         group->addAnimation(anim);
     }
 
+    m_transition = group;
     group->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
@@ -229,46 +379,5 @@ void SvgIcon::paintEvent(QPaintEvent *event) {
         return;
 
     QPainter painter(this);
-    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform, true);
-    painter.scale(1.0 / m_devicePixelRatio, 1.0 / m_devicePixelRatio);
-
-    const QRect rect = m_cachedImage.rect();
-
-    // 1. Background fill
-    painter.fillRect(rect, m_background);
-
-    // 2. SVG content — either full render or single sprite element
-    QImage coloredImage = m_cachedImage;
-
-    if (!m_elementId.isEmpty()) {
-        // Render only the requested sprite element
-        m_renderer->render(&painter, m_elementId);
-    } else if (!m_defaultColors && m_color != Qt::transparent) {
-        // Apply tint color via CompositionMode_SourceIn (respects alpha)
-        QPainter imagePainter(&coloredImage);
-        imagePainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        imagePainter.fillRect(rect, m_color);
-    }
-    // If m_defaultColors == true: draw as-is, no tinting
-
-    // 3. Draw icon centered and scaled
-    painter.setOpacity(m_opacity);
-    const QSize imgSize = m_cachedImage.size() * m_scale;
-    const QPoint center(
-        (rect.width()  - imgSize.width())  / 2,
-        (rect.height() - imgSize.height()) / 2
-    );
-    painter.drawImage(QRect(center, imgSize), coloredImage);
-
-    // 4. Border — drawn last so it sits on top
-    if (m_borderWidth > 0) {
-        painter.setOpacity(1.0); // border always fully opaque
-        QPen borderPen(m_borderColor, m_borderWidth);
-        borderPen.setJoinStyle(Qt::MiterJoin);
-        painter.setPen(borderPen);
-        painter.setBrush(Qt::NoBrush);
-        // inset by half border width so it doesn't clip at edges
-        const qreal half = m_borderWidth / 2.0;
-        painter.drawRect(QRectF(rect).adjusted(half, half, -half, -half));
-    }
+    SvgIconPainter::composite(&painter, rect(), m_cachedImage, currentOptions());
 }
