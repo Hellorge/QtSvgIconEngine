@@ -17,6 +17,7 @@ set(TESTS
     tst_hidpi               # widget rasterises at the screen's dpr
     tst_interaction         # synthesized mouse events actually reach the icon
     tst_stroke              # stroke-dashoffset draw-on, marching ants
+    tst_readme              # every README code block compiles and behaves
 )
 
 foreach(t ${TESTS})

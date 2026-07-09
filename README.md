@@ -96,6 +96,9 @@ can drive it directly with `icon->setState(SvgIcon::Hovered)`.
 | `border_width` | `qreal` | `0.0` |
 | `default_colors` | `bool` | `false` — keep the file's own colours, no tinting |
 | `transition_ms` | `int` | `150` |
+| `stroke_progress` | `qreal` | `1.0` — `0` undrawn, `1` fully drawn ([stroke effects](#stroke-effects)) |
+| `dash_pattern` | `qreal` | `0.0` — dash length in SVG user units; `0` disables |
+| `dash_offset` | `qreal` | `0.0` — animate for marching ants |
 
 Prefix any of the visual keys with `hover_`, `pressed_`, `selected_` or `disabled_` to
 override it for that state. `hover_icon`, `pressed_icon`, `selected_icon` and
@@ -112,30 +115,54 @@ When a state has no explicit override, it is derived. These knobs tune the deriv
 
 ## Stroke effects
 
-Beyond colour and geometry, the stroke itself is animatable.
+Beyond colour and geometry, the stroke itself is animatable. `stroke_progress` goes from
+`0` (undrawn) to `1` (fully drawn).
+
+```cpp
+#include <QPropertyAnimation>
+
+QVariantMap o;
+o["size"]            = QSize(48, 48);
+o["stroke_progress"] = 0.0;                  // start undrawn
+SvgIcon *icon = icons.getIcon("regular/star", o);
+
+auto *draw = new QPropertyAnimation(icon, "stroke_progress", icon);
+draw->setDuration(800);
+draw->setStartValue(0.0);
+draw->setEndValue(1.0);
+draw->setEasingCurve(QEasingCurve::InOutCubic);
+draw->start();                               // the star writes itself on
+```
+
+It is a `Q_PROPERTY`, so it also works through `animateTo()` and takes per-state overrides
+like every other key — here the icon sits half-drawn and completes when the pointer arrives:
 
 ```cpp
 QVariantMap o;
-o["stroke_progress"] = 0.0;                 // 0 = undrawn, 1 = fully drawn
-SvgIcon *icon = icons.getIcon("regular/star", o);
-
-auto *a = new QPropertyAnimation(icon, "stroke_progress", icon);
-a->setDuration(800);
-a->setStartValue(0.0);
-a->setEndValue(1.0);
-a->start();                                 // the star writes itself on
+o["stroke_progress"]       = 0.35;           // partially drawn at rest
+o["hover_stroke_progress"] = 1.0;            // completes on hover
+o["transition_ms"]         = 400;            // over 400ms
+auto *btn = new SvgIconButton(icons.getIcon("regular/heart", o), "Like");
 ```
 
-`stroke_progress` is a `Q_PROPERTY`, so it animates like any other, participates in
-`animateTo()`, and takes per-state overrides — `hover_stroke_progress` completes the
-drawing when the pointer arrives.
-
-Marching ants come from the same primitive:
+Marching ants come from the same primitive — a fixed dash, an animated offset:
 
 ```cpp
-o["dash_pattern"] = 36.0;                   // dash length, in SVG user units
-// then animate "dash_offset" from 0 to 2 * dash_pattern, looping
+QVariantMap o;
+o["size"]         = QSize(48, 48);
+o["dash_pattern"] = 36.0;                    // dash length, in SVG user units
+SvgIcon *icon = icons.getIcon("regular/cloud", o);
+
+auto *ants = new QPropertyAnimation(icon, "dash_offset", icon);
+ants->setDuration(1400);
+ants->setStartValue(0.0);
+ants->setEndValue(72.0);                     // one full dash + gap period
+ants->setLoopCount(-1);
+ants->start();
 ```
+
+Both `stroke_progress` and `dash_offset` are valid keys for `animateTo()`, alongside
+`color`, `background`, `opacity`, `scale`, `border_color`, `border_width` and `size`.
 
 **How it works, and what that costs.** There is no SVG path parser here. `stroke-dasharray`
 and `stroke-dashoffset` inherit, so the library injects them once on the root `<svg>`
@@ -148,7 +175,8 @@ budget for one icon. Fine for a handful; don't animate a hundred at once. Icons 
 stroke effect never pay any of this.
 
 **Limitation:** a *filled* icon has no stroke to draw. `solid/heart` reports a stroke length
-of 0 and ignores the effect (with a warning) rather than rendering blank.
+of `0` and ignores the effect (with a warning) rather than rendering blank. Query it with
+`icons.strokeLength("regular/star")` or `icon->strokeLength()`.
 
 ## Widget or QIcon?
 
@@ -214,7 +242,7 @@ Requires Qt 6 (`Widgets`, `SvgWidgets`) and CMake ≥ 3.16.
 ```sh
 cmake -S . -B build
 cmake --build build
-ctest --test-dir build      # 12 suites, incl. HiDPI re-runs
+ctest --test-dir build      # 13 suites, incl. HiDPI re-runs
 ./build/test/SvgIconEngineTest   # the showcase above
 ```
 
