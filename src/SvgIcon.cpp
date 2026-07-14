@@ -386,10 +386,16 @@ void SvgIcon::changeEvent(QEvent *event) {
 bool SvgIcon::event(QEvent *e) {
     // Moving to a screen with a different scale factor must re-rasterise, or a
     // 1x bitmap gets stretched across 2x pixels and the icon looks soft.
+    //
+    // DevicePixelRatioChange arrived in Qt 6.6. On 6.5 the icon still rasterises
+    // at the ratio it was created with; it just will not follow a move between
+    // differently-scaled screens.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     if (e->type() == QEvent::DevicePixelRatioChange) {
         updateCachedImage();
         update();
     }
+#endif
     return QSvgWidget::event(e);
 }
 

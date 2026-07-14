@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.21)  # PROJECT_IS_TOP_LEVEL
 
 project(SvgIconEngine
     VERSION 0.2.0

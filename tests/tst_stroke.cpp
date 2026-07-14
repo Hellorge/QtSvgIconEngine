@@ -42,7 +42,12 @@ static int coverage(SvgIcon *icon) {
             if (im.pixelColor(x, y).alpha() > 60) ++n;
     return n;
 }
-static QByteArray read(const QString &p) { QFile f(p); f.open(QIODevice::ReadOnly); return f.readAll(); }
+static QByteArray read(const QString &p) {
+    QFile f(p);
+    if (!f.open(QIODevice::ReadOnly))
+        return {};
+    return f.readAll();
+}
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
@@ -61,6 +66,31 @@ int main(int argc, char **argv) {
         const QByteArray filled = read(root + "/solid/heart.svg");
         check("filled icon reports zero stroke length",
               qFuzzyIsNull(SvgStroke::measureStrokeLength(filled)));
+    }
+
+    // ── a real-world SVG with an XML prolog / doctype ──────────────────────
+    // Illustrator, Inkscape and most icon sets emit these. The dash attributes
+    // must land on the <svg> element, not on the first tag in the file.
+    {
+        const QByteArray prolog =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" "
+            "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">"
+            "<path d=\"M20,20 L80,20 L80,80 L20,80 Z\" "
+            "style=\"fill:none;stroke:#000;stroke-width:6\"/>"
+            "</svg>";
+
+        const QByteArray dashed = SvgStroke::injectDash(prolog, 100, 50);
+        check("prolog is left intact",
+              dashed.contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        check("dash attributes land after <svg, not in the prolog",
+              dashed.indexOf("stroke-dasharray") > dashed.indexOf("<svg"));
+
+        const qreal len = SvgStroke::measureStrokeLength(prolog);
+        qInfo().noquote() << QString("         prolog svg stroke length = %1 (square perimeter ~240)")
+            .arg(len, 0, 'f', 0);
+        check("stroke length is measured, not the 16384 cap", len > 10.0 && len < 1000.0);
     }
 
     // ── draw-on: coverage grows monotonically with progress ────────────────

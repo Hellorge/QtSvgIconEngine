@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <QSvgRenderer>
 
+#include <cctype>
+
 namespace SvgStroke {
 
 namespace {
@@ -37,12 +39,53 @@ int strokeCoverage(const QByteArray &svg) {
     return covered;
 }
 
+// Index of the '>' closing the root <svg ...> opening tag, or -1.
+//
+// Not svg.indexOf('>'): a document may open with an XML declaration, a doctype
+// or a comment, whose '>' comes first. A '>' may also appear unescaped inside an
+// attribute value, so quoted spans are skipped.
+int svgTagEnd(const QByteArray &svg) {
+    int start = -1;
+    for (int i = svg.indexOf("<svg"); i >= 0; i = svg.indexOf("<svg", i + 4)) {
+        const int after = i + 4;
+        if (after >= svg.size())
+            break;
+        // Reject "<svgfoo": the name must end here.
+        const char c = svg.at(after);
+        if (c == '>' || c == '/' || std::isspace(static_cast<unsigned char>(c))) {
+            start = i;
+            break;
+        }
+    }
+    if (start < 0)
+        return -1;
+
+    char quote = 0;
+    for (int i = start + 4; i < svg.size(); ++i) {
+        const char c = svg.at(i);
+        if (quote) {
+            if (c == quote)
+                quote = 0;
+        } else if (c == '"' || c == '\'') {
+            quote = c;
+        } else if (c == '>') {
+            return i;
+        }
+    }
+    return -1;
+}
+
 } // namespace
 
 QByteArray injectDash(const QByteArray &svg, qreal dashArray, qreal dashOffset) {
-    const int rootEnd = svg.indexOf('>');
-    if (rootEnd < 0)
+    int at = svgTagEnd(svg);
+    if (at < 0)
         return svg;
+
+    // A self-closing root (<svg .../>) has nothing to stroke, but insert before
+    // the slash rather than after it so the document stays well-formed.
+    if (at > 0 && svg.at(at - 1) == '/')
+        --at;
 
     QByteArray attrs = " stroke-dasharray=\"";
     attrs += QByteArray::number(dashArray, 'f', 3);
@@ -50,7 +93,7 @@ QByteArray injectDash(const QByteArray &svg, qreal dashArray, qreal dashOffset) 
     attrs += QByteArray::number(dashOffset, 'f', 3);
     attrs += '"';
 
-    return svg.left(rootEnd) + attrs + svg.mid(rootEnd);
+    return svg.left(at) + attrs + svg.mid(at);
 }
 
 qreal measureStrokeLength(const QByteArray &svg) {

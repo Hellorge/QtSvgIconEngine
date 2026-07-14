@@ -53,7 +53,11 @@ int main(int argc,char**argv){
     // --- sprites, widget and QIcon ----------------------------------------
     QTemporaryDir tmp;
     const QString spritePath = tmp.path() + "/sheet.svg";
-    { QFile f(spritePath); f.open(QIODevice::WriteOnly); f.write(kSprite); }
+    {
+        QFile f(spritePath);
+        check("sprite fixture is writable", f.open(QIODevice::WriteOnly));
+        f.write(kSprite);
+    }
 
     QVariantMap so; so["size"]=QSize(32,32); so["color"]=QColor("#ff0000");
     SvgIcon *sprA = e.getIconFromSprite(spritePath, "a", so);

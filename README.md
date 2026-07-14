@@ -18,7 +18,7 @@ item views.
 
 ## Requirements
 
-Qt 6 (`Widgets`, `SvgWidgets`), CMake 3.16 or newer, a C++17 compiler.
+Qt 6.5 or newer (`Widgets`, `SvgWidgets`), CMake 3.21 or newer, a C++17 compiler.
 
 ## Quick start
 
@@ -213,9 +213,11 @@ still in use by a live icon stays alive until the last icon using it is destroye
 
 ## HiDPI
 
-Both the widget and the `QIconEngine` rasterise at the screen's `devicePixelRatio`, and
-re-rasterise when the window moves to a display with a different scale factor. The
-scale-sensitive tests run at `QT_SCALE_FACTOR=2` as well as `1`.
+Both the widget and the `QIconEngine` rasterise at the screen's `devicePixelRatio`. On Qt 6.6
+and newer the widget also re-rasterises when the window moves to a display with a different
+scale factor; on 6.5 it keeps the ratio it was created with.
+
+The scale-sensitive tests run at `QT_SCALE_FACTOR=2` as well as `1`, on every CI platform.
 
 ## Building
 
@@ -268,9 +270,11 @@ cmake --build build --target make_docs SvgIconEngineTest
 - Gradient and multi-colour tinting.
 - Glow and drop shadow.
 - Path morphing between icons. Needs a real path-data parser and matched node counts.
-- Continuous integration. The test suites are not run automatically on push.
-- Windows and macOS are untested; only Linux with Qt 6 is exercised. Qt 5 is unsupported —
-  `SvgQIconEngine` overrides Qt 6-only virtuals.
+- A QML frontend. The rendering (`SvgIconPainter`) and the state resolution
+  (`SvgIcon::resolveOptions`) are already free of any widget dependency, so a
+  `QQuickPaintedItem` could reuse them directly. `SvgIconButton` would not port — QML composes
+  buttons from `MouseArea`.
+- Qt 5 is unsupported: `SvgQIconEngine` overrides Qt 6-only virtuals.
 
 ## Credits
 

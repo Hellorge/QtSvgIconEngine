@@ -94,7 +94,9 @@ int main(int argc, char **argv) {
     QTemporaryDir tmp;
     const QString sheet = tmp.path() + "/toolbar.svg";
     {
-        QFile f(sheet); f.open(QIODevice::WriteOnly);
+        QFile f(sheet);
+        if (!f.open(QIODevice::WriteOnly))
+            return 1;
         f.write("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 10'>"
                 "<rect id='cut' x='0' y='0' width='10' height='10' fill='#000'/>"
                 "<circle id='paste' cx='15' cy='5' r='5' fill='#000'/></svg>");

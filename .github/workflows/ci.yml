@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os }} · Qt ${{ matrix.qt }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        qt: ['6.5.3', '6.8.2']   # oldest supported LTS, and a recent release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt }}
+          modules: qtsvg
+          cache: true
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      # The suites are headless already: every test runs under the offscreen
+      # platform, and the scale-sensitive ones are re-run at QT_SCALE_FACTOR=2.
+      - name: Test
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+  install:
+    name: install + find_package
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.2'
+          modules: qtsvg
+          cache: true
+
+      - name: Build and install
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+          cmake --install build --prefix "$PWD/prefix"
+
+      # A consumer must be able to find_package() the installed library and link
+      # the namespaced target. This fails if the export set or the include
+      # interface is wrong, which a normal in-tree build would not catch.
+      - name: Consume the installed package
+        run: |
+          mkdir -p consumer
+          cat > consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.16)
+          project(consumer LANGUAGES CXX)
+          set(CMAKE_CXX_STANDARD 17)
+          set(CMAKE_AUTOMOC ON)
+          find_package(SvgIconEngine 0.2 REQUIRED)
+          add_executable(consumer main.cpp)
+          target_link_libraries(consumer PRIVATE SvgIconEngine::SvgIconEngine)
+          EOF
+          cat > consumer/main.cpp <<'EOF'
+          #include <QApplication>
+          #include <QPushButton>
+          #include <SvgIconEngine/SvgIconEngine.h>
+          int main(int argc, char **argv) {
+              QApplication app(argc, argv);
+              SvgIconEngine icons(argv[1]);
+              QPushButton b(icons.icon("regular/heart"), "ok");
+              return b.icon().isNull() ? 1 : 0;
+          }
+          EOF
+          cmake -S consumer -B consumer/build -DCMAKE_PREFIX_PATH="$PWD/prefix"
+          cmake --build consumer/build --parallel
+          QT_QPA_PLATFORM=offscreen ./consumer/build/consumer test/svgs
+
+  shared:
+    name: shared library build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.2'
+          modules: qtsvg
+          cache: true
+
+      - name: Build and test as a shared library
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          cmake --build build --parallel
+          ctest --test-dir build --output-on-failure
