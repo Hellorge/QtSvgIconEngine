@@ -24,7 +24,6 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ matrix.qt }}
-          modules: qtsvg
           cache: true
 
       - name: Configure
@@ -49,7 +48,6 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.2'
-          modules: qtsvg
           cache: true
 
       - name: Build and install
@@ -99,7 +97,6 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.2'
-          modules: qtsvg
           cache: true
 
       - name: Build and test as a shared library
