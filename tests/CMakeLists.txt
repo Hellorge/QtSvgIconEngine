@@ -1,9 +1,8 @@
-# Every test is a plain executable that returns the number of failed
-# assertions, so it needs no test framework. Each takes the icon root as argv[1].
+# Every test is a plain executable returning the number of failed assertions, so
+# no test framework is needed. Each takes the icon root as argv[1].
 #
-# The HiDPI variants matter: two real bugs (the QIcon engine drawing at 2x and
-# clipping, and the widget rasterising at 1x and blurring) were invisible at
-# devicePixelRatio 1 and only showed on a scaled display.
+# Scale-sensitive suites are re-run at devicePixelRatio 2: rendering faults at 2x
+# do not show at 1x.
 
 set(SVG_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../test/svgs)
 

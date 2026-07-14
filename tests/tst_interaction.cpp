@@ -1,8 +1,8 @@
 // Drives an SvgIconButton with synthesized mouse events and checks that the
-// state actually reaches the icon. Every earlier bug in this chain — the button
-// never telling the icon it was pressed, and the hidden icon's update() being a
-// no-op so animation frames never painted — is invisible to a unit test that
-// calls setState() directly.
+// resulting state reaches the icon it renders.
+//
+// A test that calls setState() directly cannot catch a break in the event chain
+// between the button and the icon, so this one goes through the events.
 
 #include <QApplication>
 #include <QEnterEvent>

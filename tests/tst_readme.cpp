@@ -1,9 +1,5 @@
-// Every code block from README.md, verbatim. If a documented snippet stops
-// compiling — or stops behaving as documented — this test fails.
-//
-// The previous README's opening example did not compile: it wrote
-//   SvgIcon icon = engine.getIcon(...);
-// when getIcon() returns a pointer. Nothing caught it, because nothing built it.
+// Every code block from README.md, verbatim. A documented snippet that stops
+// compiling, or stops behaving as documented, fails here.
 #include <QApplication>
 #include <QPushButton>
 #include <QPropertyAnimation>
