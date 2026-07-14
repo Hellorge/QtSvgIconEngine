@@ -16,6 +16,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         qt: ['6.5.3', '6.8.2']   # oldest supported LTS, and a recent release
+        exclude:
+          # Qt 6.5's macOS build links the AGL framework, which Apple removed from
+          # the SDK the current runners ship. macOS therefore needs Qt 6.6 or newer.
+          - os: macos-latest
+            qt: '6.5.3'
 
     steps:
       - uses: actions/checkout@v4

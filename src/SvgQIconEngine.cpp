@@ -57,6 +57,21 @@ QPixmap SvgQIconEngine::scaledPixmap(const QSize &size, QIcon::Mode mode,
     if (size.isEmpty() || scale <= 0.0)
         return QPixmap();
 
+    // Qt changed what `size` means here. Up to and including 6.5, QIcon::pixmap()
+    // passes it already multiplied by the device pixel ratio; from 6.6 it passes
+    // the logical size and leaves the multiplication to the engine. Multiplying
+    // unconditionally renders a 6.5 icon at 4x and clips it.
+    //
+    // Either way the caller wants `logical` logical pixels backed by
+    // `logical * scale` device pixels.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    const QSize logical = size;
+#else
+    const QSize logical(qRound(size.width() / scale), qRound(size.height() / scale));
+#endif
+    if (logical.isEmpty())
+        return QPixmap();
+
     const SvgIcon::State s = toIconState(mode);
     const QVariantMap resolved = SvgIcon::resolveOptions(m_options, s);
 
@@ -64,7 +79,7 @@ QPixmap SvgQIconEngine::scaledPixmap(const QSize &size, QIcon::Mode mode,
     // tints (or a palette change) must not collide in the cache.
     const QString cacheKey = QStringLiteral("svgqie:%1#%7:%2x%3@%4:%5:%6")
         .arg(m_name)
-        .arg(size.width()).arg(size.height())
+        .arg(logical.width()).arg(logical.height())
         .arg(scale)
         .arg(int(mode))
         .arg(resolved.value(QStringLiteral("color")).value<QColor>().name(QColor::HexArgb))
@@ -78,14 +93,14 @@ QPixmap SvgQIconEngine::scaledPixmap(const QSize &size, QIcon::Mode mode,
     if (!r)
         return QPixmap();
 
-    QImage out(size * scale, QImage::Format_ARGB32_Premultiplied);
+    QImage out(logical * scale, QImage::Format_ARGB32_Premultiplied);
     out.setDevicePixelRatio(scale);
     out.fill(Qt::transparent);
 
     {
         QPainter painter(&out);
-        const QImage uncolored = SvgIconPainter::rasterize(r, size, scale, m_elementId);
-        SvgIconPainter::composite(&painter, QRect(QPoint(0, 0), size), uncolored, resolved);
+        const QImage uncolored = SvgIconPainter::rasterize(r, logical, scale, m_elementId);
+        SvgIconPainter::composite(&painter, QRect(QPoint(0, 0), logical), uncolored, resolved);
     }
 
     QPixmap pm = QPixmap::fromImage(out);
