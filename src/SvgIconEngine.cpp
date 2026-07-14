@@ -283,7 +283,11 @@ QString SvgIconEngine::resolvePath(const QString &path, const QString &baseDir) 
         p += QLatin1String(".svg");
 
     // Absolute or qrc: ignore the bank entirely.
-    if (p.startsWith(QLatin1Char(':')) || p.startsWith(QLatin1Char('/')))
+    //
+    // QDir::isAbsolutePath rather than a leading '/': on Windows an absolute path
+    // is "C:/x" or "\\\\server\\share", neither of which starts with a slash. A
+    // qrc path starts with ':' and is checked separately.
+    if (p.startsWith(QLatin1Char(':')) || QDir::isAbsolutePath(p))
         return p;
 
     // A bare name inside a per-state option means "next to the base icon".

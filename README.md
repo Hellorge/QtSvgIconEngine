@@ -20,6 +20,10 @@ item views.
 
 Qt 6.5 or newer (`Widgets`, `SvgWidgets`), CMake 3.21 or newer, a C++17 compiler.
 
+Qt 6.5 builds on Linux only. Windows and macOS need Qt 6.6 or newer — Qt 6.5 does not compile
+with the current MSVC STL, and its macOS build links a framework Apple has removed. CI covers
+Linux on 6.5 and 6.8, and Windows and macOS on 6.8.
+
 ## Quick start
 
 ```cpp

@@ -14,13 +14,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        qt: ['6.5.3', '6.8.2']   # oldest supported LTS, and a recent release
-        exclude:
-          # Qt 6.5's macOS build links the AGL framework, which Apple removed from
-          # the SDK the current runners ship. macOS therefore needs Qt 6.6 or newer.
-          - os: macos-latest
-            qt: '6.5.3'
+        # Qt 6.5 is the oldest version this library supports, but it only builds on
+        # Linux with a current toolchain:
+        #   - on Windows, Qt 6.5's qvarlengtharray.h uses stdext::checked_array_iterator,
+        #     which Microsoft removed from the MSVC STL in VS 2022 17.10;
+        #   - on macOS, Qt 6.5 links Apple's AGL framework, removed from current SDKs.
+        # Both are Qt's problems, not this library's. Windows and macOS need Qt 6.6+.
+        include:
+          - { os: ubuntu-latest,  qt: '6.5.3' }
+          - { os: ubuntu-latest,  qt: '6.8.2' }
+          - { os: windows-latest, qt: '6.8.2' }
+          - { os: macos-latest,   qt: '6.8.2' }
 
     steps:
       - uses: actions/checkout@v4

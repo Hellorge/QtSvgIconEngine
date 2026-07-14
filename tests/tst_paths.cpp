@@ -28,6 +28,15 @@ int main(int argc,char**argv){
           e.resolvePath("/tmp/x.svg") == "/tmp/x.svg");
     check("qrc path is verbatim",
           e.resolvePath(":/icons/x.svg") == ":/icons/x.svg");
+
+    // The platform's own temp dir is absolute everywhere: "/tmp/..." on Unix,
+    // "C:/Users/.../Temp/..." on Windows. A leading-slash test would pass the
+    // first and silently mangle the second into a bank-relative path.
+    {
+        const QString abs = QDir::tempPath() + "/qsie-abs.svg";
+        check("a platform-absolute path is verbatim (not bank-relative)",
+              e.resolvePath(abs) == abs);
+    }
     check("bare name with baseDir resolves as a sibling",
           e.resolvePath("heart", root + "/regular") == root + "/regular/heart.svg");
     check("path with a slash ignores baseDir (root-relative)",
